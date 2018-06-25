@@ -1,4 +1,5 @@
 import logging
+import math
 from time import sleep
 
 logger = logging.getLogger()
@@ -6,97 +7,90 @@ logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
 
 
-class ScrFCol:
-    NRM = "\033[0m"
-    BOLD = "\033[1m"
-
-    BLACK = "\033[30m"
-    RED = "\033[31m"
-    GREEN = "\033[32m"
-    YELLOW = "\033[33m"
-    BLUE = "\033[34m"
-    MAGENTA = "\033[35m"
-    CYAN = "\033[36m"
-    WHITE = "\033[37m"
-
-    B_BLACK = "\033[90m"
-    B_RED = "\033[91m"
-    B_GREEN = "\033[92m"
-    B_YELLOW = "\033[93m"
-    B_BLUE = "\033[94m"
-    B_MAGENTA = "\033[95m"
-    B_CYAN = "\033[96m"
-    B_WHITE = "\033[97m"
-
-
-class ScrBCol:
-    BLACK = "\033[40m"
-    RED = "\033[41m"
-    GREEN = "\033[42m"
-    YELLOW = "\033[43m"
-    BLUE = "\033[44m"
-    MAGENTA = "\033[45m"
-    CYAN = "\033[46m"
-    WHITE = "\033[47m"
-
-    B_BLACK = "\033[100m"
-    B_RED = "\033[101m"
-    B_GREEN = "\033[102m"
-    B_YELLOW = "\033[103m"
-    B_BLUE = "\033[104m"
-    B_MAGENTA = "\033[105m"
-    B_CYAN = "\033[106m"
-    B_WHITE = "\033[107m"
-
-
-class ScrFNone:
-    NRM = ""
-    BOLD = ""
-
-    BLACK = ""
-    RED = ""
-    GREEN = ""
-    YELLOW = ""
-    BLUE = ""
-    MAGENTA = ""
-    CYAN = ""
-    WHITE = ""
-
-    B_BLACK = ""
-    B_RED = ""
-    B_GREEN = ""
-    B_YELLOW = ""
-    B_BLUE = ""
-    B_MAGENTA = ""
-    B_CYAN = ""
-    B_WHITE = ""
-
-
-class ScrBNone:
-    BLACK = ""
-    RED = ""
-    GREEN = ""
-    YELLOW = ""
-    BLUE = ""
-    MAGENTA = ""
-    CYAN = ""
-    WHITE = ""
-
-    B_BLACK = ""
-    B_RED = ""
-    B_GREEN = ""
-    B_YELLOW = ""
-    B_BLUE = ""
-    B_MAGENTA = ""
-    B_CYAN = ""
-    B_WHITE = ""
-
-
-use_colour = True
-
-
 class Screen:
-    global use_colour
+    class ScrFCol:
+        NRM = "\033[0m"
+        BOLD = "\033[1m"
+
+        BLACK = "\033[30m"
+        RED = "\033[31m"
+        GREEN = "\033[32m"
+        YELLOW = "\033[33m"
+        BLUE = "\033[34m"
+        MAGENTA = "\033[35m"
+        CYAN = "\033[36m"
+        WHITE = "\033[37m"
+
+        B_BLACK = "\033[90m"
+        B_RED = "\033[91m"
+        B_GREEN = "\033[92m"
+        B_YELLOW = "\033[93m"
+        B_BLUE = "\033[94m"
+        B_MAGENTA = "\033[95m"
+        B_CYAN = "\033[96m"
+        B_WHITE = "\033[97m"
+
+    class ScrBCol:
+        BLACK = "\033[40m"
+        RED = "\033[41m"
+        GREEN = "\033[42m"
+        YELLOW = "\033[43m"
+        BLUE = "\033[44m"
+        MAGENTA = "\033[45m"
+        CYAN = "\033[46m"
+        WHITE = "\033[47m"
+
+        B_BLACK = "\033[100m"
+        B_RED = "\033[101m"
+        B_GREEN = "\033[102m"
+        B_YELLOW = "\033[103m"
+        B_BLUE = "\033[104m"
+        B_MAGENTA = "\033[105m"
+        B_CYAN = "\033[106m"
+        B_WHITE = "\033[107m"
+
+    class ScrFNone:
+        NRM = ""
+        BOLD = ""
+
+        BLACK = ""
+        RED = ""
+        GREEN = ""
+        YELLOW = ""
+        BLUE = ""
+        MAGENTA = ""
+        CYAN = ""
+        WHITE = ""
+
+        B_BLACK = ""
+        B_RED = ""
+        B_GREEN = ""
+        B_YELLOW = ""
+        B_BLUE = ""
+        B_MAGENTA = ""
+        B_CYAN = ""
+        B_WHITE = ""
+
+    class ScrBNone:
+        BLACK = ""
+        RED = ""
+        GREEN = ""
+        YELLOW = ""
+        BLUE = ""
+        MAGENTA = ""
+        CYAN = ""
+        WHITE = ""
+
+        B_BLACK = ""
+        B_RED = ""
+        B_GREEN = ""
+        B_YELLOW = ""
+        B_BLUE = ""
+        B_MAGENTA = ""
+        B_CYAN = ""
+        B_WHITE = ""
+
+    use_colour = True
     if use_colour:
         fg = ScrFCol
         bg = ScrBCol
@@ -141,6 +135,7 @@ class RoomTypes:
     # must be last - must be the highest number
     MAX = 10
 
+
 '''
 These values represent the data about different room types
 '''
@@ -155,6 +150,43 @@ room_types = [
     {"id": RoomTypes.WATER, "name": "WATER", "mv_cost": 8},
     {"id": RoomTypes.HILLS, "name": "HILLS", "mv_cost": 8},
     {"id": RoomTypes.MOUNTAIN, "name": "MOUNTAIN", "mv_cost": 10}
+]
+
+
+class Commands:
+    NONE = 0
+    LOOK = 1
+    MOVE = 2
+    EXITS = 3
+    QUIT = 4
+    HELP = 5
+    SAY = 6
+
+    NUM_CMDS = 7  # Must be last, must be largest number
+
+
+commands = [
+    {"id": Commands.NONE, "long": "NONE", "short": "", "args": {"min": 0, "max": 0}},
+    {"id": Commands.LOOK, "long": "look", "short": "l", "args": {"min": 0, "max": 1}},
+    {"id": Commands.EXITS, "long": "exits", "short": "x", "args": {"min": 0, "max": 0}},
+
+    {"id": Commands.MOVE, "long": "move", "short": "m", "args": {"min": 1, "max": 1}},
+    {"id": Commands.MOVE, "long": "north", "short": "n", "args": {"min": 0, "max": 0},
+     "vals": {"direction": Directions.NORTH}},
+    {"id": Commands.MOVE, "long": "east", "short": "e", "args": {"min": 0, "max": 0},
+     "vals": {"direction": Directions.EAST}},
+    {"id": Commands.MOVE, "long": "south", "short": "s", "args": {"min": 0, "max": 0},
+     "vals": {"direction": Directions.SOUTH}},
+    {"id": Commands.MOVE, "long": "west", "short": "w", "args": {"min": 0, "max": 0},
+     "vals": {"direction": Directions.WEST}},
+    {"id": Commands.MOVE, "long": "up", "short": "u", "args": {"min": 0, "max": 0},
+     "vals": {"direction": Directions.UP}},
+    {"id": Commands.MOVE, "long": "down", "short": "d", "args": {"min": 0, "max": 0},
+     "vals": {"direction": Directions.DOWN}},
+
+    {"id": Commands.QUIT, "long": "quit", "short": "q", "args": {"min": 0, "max": 0}},
+    {"id": Commands.HELP, "long": "help", "short": "?", "args": {"min": 0, "max": 1}},
+    {"id": Commands.SAY, "long": "say", "short": "'", "args": {"min": 1, "max": 100}},
 ]
 
 
@@ -278,15 +310,15 @@ def find_room(room_id, rooms):
     return rm
 
 
-def print_exit_detail(dir, room, rooms):
+def print_exit_detail(dr, room, rooms):
     """
-    :param dir:
+    :param dr:
     :param room:
     :param rooms:
     :return:
     """
     global directions
-    if (dir < Directions.NORTH) or (dir >= Directions.NUM_DIRS):
+    if (dr < Directions.NORTH) or (dr >= Directions.NUM_DIRS):
         # bad direction
         return
     elif len(room) == 0:
@@ -296,12 +328,12 @@ def print_exit_detail(dir, room, rooms):
         # room has bad exits
         return
 
-    exts = room["exits"]
-    ext = exts[dir]
+    exits = room["exits"]
+    ext = exits[dr]
     if ext != NOWHERE:
         print('\t{yel}{dname:5s}: [{cyan}{exnum:3d}:{exname}{yel}]{norm}'.format(yel=Screen.fg.YELLOW,
               cyan=Screen.fg.CYAN, norm=Screen.fg.NRM, exnum=ext,
-              exname=find_room(ext, rooms)["name"], dname=directions[dir]["name"]))
+              exname=find_room(ext, rooms)["name"], dname=directions[dr]["name"]))
     return
 
 
@@ -352,8 +384,142 @@ def test_all_rooms(rooms):
     logging.debug("Room test dump finished.")
 
 
-def move_player(player, dir, rooms):
+def room_get_exits(room_id, rooms):
+    """
+    return a list of valid directions
+    :param room_id:  the id of the room to search
+    :param rooms:  a list of rooms to search
+    :return: a list of valid direction ID's
+    """
+    exits = []
+    rm = find_room(room_id, rooms)
+    if len(rm) == 0:
+        # couldn't find it :(
+        logger.error('Attempt to get exits for invalid room with id [{}]'.format(room_id))
+    else:
+        rm_exits = rm["exits"]
+        if len(rm_exits) == 0:
+            # no exists in the room
+            logger.error('Player in room with no exits, returning to start')
+            print('You are somehow stuck, teleporting you to the start room')
+            player["room"] = default_start_room
+        else:
+            for dr, x in enumerate(rm_exits):
+                if x != NOWHERE:
+                    dr_info = directions[dr]
+                    exits.append(dr_info["abbrev"])
+
+    return exits
+
+
+def can_go(player, dr, rooms):
+    """
+    Check if a player is capable of going in a direction
+    :param player:  The player that is moving
+    :param dr:  The direction they want to move
+    :param rooms:  All of the rooms to check
+    :return:  True/False if they can pass, the cost to move and the destination ID
+    """
+    rm = find_room(player["room"], rooms)
+    # Is it a valid direction?
+    if (dr < Directions.NORTH) or (dr >= Directions.NUM_DIRS):
+        logger.error("Invalid direction [{}]".format(dr))
+        print('{red}Cannot figure out how to go {dr_num}{norm}'.format(red=Screen.fg.RED, norm=Screen.fg.NRM,
+                                                                       dr_num=dr))
+        return False, 0, NOWHERE
+
+    # is there an exit
+    if len(rm) == 0:
+        logger.error("Invalid room [{}]".format(player["room"]))
+        print('{red}Cannot determine the players room {r_num}{norm}'.format(red=Screen.fg.RED, norm=Screen.fg.NRM,
+                                                                            r_num=player["room"]))
+        return False, 0, NOWHERE
+
+    # does the exit exist?
+    exit_rm_num = rm["exits"][dr]
+    if exit_rm_num == NOWHERE:
+        logger.error("Invalid exit [{}] from room [{}]".format(directions[dr]["name"], player["room"]))
+        print('{red}The exit {d_name} does not lead anywhere{norm}'.format(red=Screen.fg.RED, norm=Screen.fg.NRM,
+                                                                           d_name=directions[dr]["name"]))
+        return False, 0, NOWHERE
+
+    # does the exit lead somewhere?
+    dest_rm = find_room(exit_rm_num, rooms)
+    if len(dest_rm) == 0:
+        logger.error("Invalid destination room [{}] from [{}]".format(player["room"], dest_rm))
+        print('{red}The exit {d_name} does not lead anywhere{norm}'.format(red=Screen.fg.RED, norm=Screen.fg.NRM,
+                                                                           d_name=directions[dr]["name"]))
+        return False, 0, NOWHERE
+
+    # does the player have enough moves left
+    from_type = room_types[rm["type"]]                      # get the from type
+    to_type = room_types[dest_rm["type"]]                   # get the to type
+    ave = (from_type["mv_cost"] + to_type["mv_cost"]) / 2   # get the average cost of the 2 rooms
+    mv_needed = int(math.ceil(ave))                         # must be an integer
+    if mv_needed > player["moves"]:
+        print("You're too tired to go that way")
+        return False, 0, NOWHERE
+
+    # does the player have permission to go there (only Dan in dev rooms)
+    if to_type == RoomTypes.DEV:
+        if player.get("admin", False):
+            print("You are not a dev.  only dev's are allowed in there")
+            return False, 0, NOWHERE
+
+    # TODO: Other things....
+    #    Are they sitting r standing
+    #    Are they fighting
+    #    Is there a door...
+    return True, mv_needed, exit_rm_num
+
+
+def move_player(player, to_id, from_id, rooms, cost):
+    logging.debug("Move player {} from room [{}] to room [{}]".format(player["name"], from_id, to_id))
+    if player["moves"] < cost:
+        pass  # no move
+    elif to_id == NOWHERE:
+        pass  # bad destination
+    elif len(find_room(to_id, rooms)) == 0:
+        pass  # missing destination
+    else:
+        player["moves"]
+        player["moves"] -= cost
+        player["room"] = to_id
+        logging.debug('Player now has {} moves'.format(player["moves"]))
     return
+
+
+def get_prompt_string(player):
+    s = "Health: "
+    pct_h = (float(player["health"])/float(player["max_health"])) * 100.0
+    if pct_h < 5.0:  # badly hurt
+        col_s = Screen.fg.B_RED
+    elif pct_h < 20.0:
+        col_s = Screen.fg.RED
+    elif pct_h < 70.0:
+        col_s = Screen.fg.YELLOW
+    elif pct_h < 70.0:
+        col_s = Screen.fg.BLUE
+    else:
+        col_s = Screen.fg.B_CYAN
+    s += "{col}{hp}/{max_hp}{norm}".format(col=col_s, norm=Screen.fg.NRM,
+                                           hp=player["health"], max_hp=player["max_health"])
+    s += " Moves: "
+    pct_m = (float(player["moves"])/float(player["max_moves"])) * 100.0
+    if pct_m < 5.0:  # badly hurt
+        col_s = Screen.fg.B_RED
+    elif pct_m < 20.0:
+        col_s = Screen.fg.RED
+    elif pct_m < 70.0:
+        col_s = Screen.fg.YELLOW
+    elif pct_m < 70.0:
+        col_s = Screen.fg.BLUE
+    else:
+        col_s = Screen.fg.B_CYAN
+    s += "{col}{mv}/{max_mv}{norm}".format(col=col_s, norm=Screen.fg.NRM,
+                                           mv=player["moves"], max_mv=player["max_moves"])
+    s += ":"
+    return s
 
 
 def look_at_room(player, rooms):
@@ -361,8 +527,8 @@ def look_at_room(player, rooms):
         print('Floating in the VOID, just look at all the stars!')
     elif player["room"] < 0 or player["room"] > max_room_id:
         print('Falling !!!!  Somehow you are outside the world, returning you to the start')
-        player[room] = default_start_room
-        look_at_room(player)
+        player["room"] = default_start_room
+        look_at_room(player, rooms)
     else:
         rm = find_room(player["room"], rooms)
         if len(rm) != 0:
@@ -371,15 +537,41 @@ def look_at_room(player, rooms):
             print('{mag}{rdesc}{norm}'.format(mag=Screen.fg.MAGENTA, norm=Screen.fg.NRM, rdesc=rm["desc"]))
             ex = rm["exits"]
             if len(ex) == 0:
-                print("{cyn}Exits: None!{norm}")
+                print("{yel}Exits: [{cyn} None {yel}]{norm}".format(yel=Screen.fg.YELLOW, cyn=Screen.fg.CYAN,
+                      norm=Screen.fg.NRM))
             else:
-                print('todo')
+                exits = room_get_exits(player["room"], rooms)
+                print("{yel}Exits: [{cyn} {e_str} {yel}]{norm}".format(yel=Screen.fg.YELLOW, cyn=Screen.fg.CYAN,
+                      norm=Screen.fg.NRM, e_str=' '.join(exits)))
     return
 
 
+def get_command(player, command_txt):
+    global commands
+    command_txt = str(command_txt).lstrip().rstrip().lower()
+    args = command_txt.split(' ')
+    logging.debug('Got command test [{}] - {} args'.format(command_txt, len(args)))
+    if len(command_txt) == 0:
+        print('You need to type a command')
+    else:
+        for cmd in commands:
+            if cmd["id"] == Commands.NONE:
+                continue  # skip the "NONE" command
+            elif (cmd["long"] == args[0]) or (cmd["short"] == args[0]):
+                # we found it!!!!
+                logging.debug('Found command [{}:{}]'.format(cmd["id"], cmd["long"]))
+                # check the args
+                vals = {}
+                if "vals" in cmd:
+                    vals.update(cmd["vals"])
+                return cmd["id"], cmd, vals
+
+    return Commands.NONE, commands[Commands.NONE], {}
+
+
 def main():
-    player = {"name": "Dan", "room": dev_start_room, "moves": 20, "max_moves": 20, "health": 10, "max_health": 10,
-              "stuff": []}
+    player = {"name": "Bob", "room": default_start_room, "moves": 20, "max_moves": 20, "health": 10, "max_health": 10,
+              "stuff": [], "admin": False}
 
     running = True
     counter = 0
@@ -389,12 +581,17 @@ def main():
     test_all_rooms(all_rooms)
     print('\n\n\n\n')
     while True:
-        new_name = input("What is your name: ")
+        new_name = input("What is your name: ").lstrip().rstrip()
         if new_name == '':
             print('You must have a name, try again')
         elif new_name.lower() == 'dan':
             player["name"] = "Dangerous Daniel"
             player["room"] = dev_start_room
+            player["admin"] = True
+            player["moves"] = 100
+            player["max_moves"] = 100
+            player["health"] = 100
+            player["max_health"] = 100
             break
         else:
             player["name"] = new_name
@@ -408,19 +605,49 @@ def main():
     while running:
         counter += 1
         logging.debug('Counter is at {}'.format(counter))
+
         if counter == 20:
             logging.info('Game is now quitting')
             running = False
-        cmd = input("Command: ")
-        lcmd = cmd.lower()
-        if (lcmd == 'quit') or (lcmd == 'q'):
-            break
-        elif (lcmd == 'look') or {lcmd == 'l'}:
-            look_at_room(player, all_rooms)
 
-        sleep(1)
+        cmd_txt = input("{} Command: ".format(get_prompt_string(player)))
+        cid, cmd, vals = get_command(player, cmd_txt)
 
-    print('Goodbye')
+        if cid == Commands.NONE:
+            print("I don't understand the command [{}], try again".format(cmd_txt))
+
+        elif cid == Commands.LOOK:
+            if len(vals) == 0:
+                look_at_room(player, all_rooms)
+            else:
+                print('Cannot look at things yet')
+
+        elif cid == Commands.QUIT:
+            print('Goodbye')
+            running = False
+            continue
+
+        elif cid == Commands.MOVE:
+            if len(vals) == 0:
+                print("Move where?")
+            else:
+                m_dir = vals["direction"]
+                # check if the abbreviation for this direction is in the exit list
+                if directions[m_dir]["abbrev"] not in room_get_exits(player["room"], all_rooms):
+                    print('You cannot go {} from here'.format(directions[m_dir]["name"]))
+                else:
+                    can_pass, cost, dest_id = can_go(player, m_dir, all_rooms)
+                    if can_pass and (cost > 0) and (dest_id != NOWHERE):
+                        move_player(player, dest_id, player["room"], all_rooms, cost)
+                        look_at_room(player, all_rooms)
+        else:
+            print("Unknown command [{}], try again".format(cmd_txt))
+
+        print()
+        # end while running
+
+        print()
+        sleep(1)  # wait 1 second
 
 
 if __name__ == "__main__":
