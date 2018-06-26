@@ -1,5 +1,6 @@
 import logging
 import math
+import sys
 from time import sleep
 
 logger = logging.getLogger()
@@ -110,7 +111,7 @@ class Directions:
     NUM_DIRS = 6
 
 
-directions = [
+g_directions = [
     {"name": "North", "abbrev": "N"},
     {"name": "East", "abbrev": "E"},
     {"name": "South", "abbrev": "S"},
@@ -139,7 +140,7 @@ class RoomTypes:
 '''
 These values represent the data about different room types
 '''
-room_types = [
+g_room_types = [
     {"id": RoomTypes.DEV, "name": "DEV", "mv_cost": 0},
     {"id": RoomTypes.GRASS, "name": "GRASS", "mv_cost": 3},
     {"id": RoomTypes.FOREST, "name": "FOREST", "mv_cost": 5},
@@ -161,16 +162,23 @@ class Commands:
     QUIT = 4
     HELP = 5
     SAY = 6
+    TELEPORT = 7
 
-    NUM_CMDS = 7  # Must be last, must be largest number
+    NUM_CMDS = 8  # Must be last, must be largest number
 
 
-commands = [
+g_commands = [
+    # Place holder for NO COMMAND
     {"id": Commands.NONE, "long": "NONE", "short": "", "args": {"min": 0, "max": 0}},
+    # Look can be run with 0 or one arguments.   With 0 it means at the current room, with
+    # 1 argument it means look at the thing/person mentioned.
     {"id": Commands.LOOK, "long": "look", "short": "l", "args": {"min": 0, "max": 1}},
+    # Exists just lists the exits for the current room, 0 arguments
     {"id": Commands.EXITS, "long": "exits", "short": "x", "args": {"min": 0, "max": 0}},
 
+    # The player can type move <drection>, must have a direction.
     {"id": Commands.MOVE, "long": "move", "short": "m", "args": {"min": 1, "max": 1}},
+    # Handle the actual directions, pre fill the movement direction values.
     {"id": Commands.MOVE, "long": "north", "short": "n", "args": {"min": 0, "max": 0},
      "vals": {"direction": Directions.NORTH}},
     {"id": Commands.MOVE, "long": "east", "short": "e", "args": {"min": 0, "max": 0},
@@ -184,15 +192,24 @@ commands = [
     {"id": Commands.MOVE, "long": "down", "short": "d", "args": {"min": 0, "max": 0},
      "vals": {"direction": Directions.DOWN}},
 
+    # Teleport moves the player.  If given 1 argument to the room with that ID, if given 2
+    # arguments teleport should move the specified object or mob to the room ID
+    {"id": Commands.TELEPORT, "long": "teleport", "short": "tp", "args": {"min": 1, "max": 2}, "admin": True},
+
+    # quit the game, no arguments
     {"id": Commands.QUIT, "long": "quit", "short": "q", "args": {"min": 0, "max": 0}},
+    # Show the help.  If given 0 arguments, list the commands accessible to the player, if given 1
+    # command, list the help for that command.
     {"id": Commands.HELP, "long": "help", "short": "?", "args": {"min": 0, "max": 1}},
+
+    # Allows the player to say things (max 100 words, min 1)
     {"id": Commands.SAY, "long": "say", "short": "'", "args": {"min": 1, "max": 100}},
 ]
 
 
 def get_room_type_name(room_id):
     if (room_id >= RoomTypes.DEV) and (room_id < RoomTypes.MAX):
-        name = room_types[room_id]["name"]
+        name = g_room_types[room_id]["name"]
     else:
         name = "UNKNOWN"
     return name
@@ -203,144 +220,226 @@ NOWHERE = -1
 NOBODY = -1
 NOTHING = -1
 
-max_room_id = NONE
+g_max_room_id = NONE
+g_min_room_id = sys.maxsize
+g_default_start_room = 1
+g_dev_start_room = 0
 
-default_start_room = 1
-dev_start_room = 0
+g_the_world = []
+
+g_the_player = {"name": "Unknown"}
+
+
+def is_admin(player=g_the_player):
+    """
+    Check if a player is an admin.
+    :param player: The player to check
+    :return:
+    """
+    if len(player) < 1:
+        # not a valid player
+        return False
+    elif "admin" not in player:
+        # not a valid player
+        return False
+    else:
+        return player["admin"]
 
 
 def make_rooms():
-    new_rooms = [
-        {"id": 0, "name": "Dan's Dev Room", "type": RoomTypes.DEV,
+    global g_the_world
+    g_the_world = [
+        # Zone 0 - up to 100 rooms, use for system and common rooms
+        {"id": 0, "name": "The void", "type": RoomTypes.CITY,
+         "desc": "There is nothing here.  You are floating in an inky blackness, but look at all the stars!",
+         "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE],
+         "special": NONE, "looks": [
+            {"name": "stars", "desc": "The stars appear at the same time to be right next to you and somehow far away"}
+            ]},
+
+        {"id": 1000, "name": "Dan's Dev Room", "type": RoomTypes.DEV,
          "desc": "This is a temporary dev room.  This is a plain white space for creating new stuff.",
-         "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, 1],
+         "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, 1001],
          "special": NONE, "looks": []},
 
-        {"id": 1, "name": "The South Garden", "type": RoomTypes.GRASS,
+        # Zone 10 - up to 100 rooms
+        {"id": 1000, "name": "Dan's Dev Room", "type": RoomTypes.DEV,
+         "desc": "This is a temporary dev room.  This is a plain white space for creating new stuff.",
+         "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, 1001],
+         "special": NONE, "looks": []},
+
+        {"id": 1001, "name": "The South Garden", "type": RoomTypes.GRASS,
          "desc": "This is a beautiful and lush garden.  The grass is green and there are flowers and trees all " +
                  "around the place.",
-         "exits": [2, NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE],
+         "exits": [1002, NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE],
          "special": NONE, "looks": [
             {"name": "grass", "desc": "The grass is very lush and a health green."},
             {"name": "trees", "desc": "Tall, medium and short, the trees are lush and healthy."},
             {"name": "flowers", "desc": "Small white and yellow flowers are in the garden beds."}]},
 
-        {"id": 2, "name": "Outside the House", "type": RoomTypes.TRACK,
+        {"id": 1002, "name": "Outside the House", "type": RoomTypes.TRACK,
          "desc": "A small garden outside the front entrance.  Small garden beds full of flowers line the grass " +
                  "beside the path.",
-         "exits": [3, 4, 1, NOWHERE, NOWHERE, NOWHERE],
+         "exits": [1003, 1004, 1001, NOWHERE, NOWHERE, NOWHERE],
          "special": NONE, "looks": [
             {"name": "grass", "desc": "The grass is very lush and a health green."},
             {"name": "flowers", "desc": "Small white and yellow flowers are in the garden beds."},
             {"name": "path", "desc": "A neat gravel path."}]},
 
-        {"id": 3, "name": "The north garden", "type": RoomTypes.GRASS,
+        {"id": 1003, "name": "The north garden", "type": RoomTypes.GRASS,
          "desc": "This is a lush and beautiful garden.  The grass is green and there are flowers and trees all " +
                  "around the place.",
-         "exits": [NOWHERE, NOWHERE, 1, NOWHERE, NOWHERE, NOWHERE],
+         "exits": [NOWHERE, NOWHERE, 1001, NOWHERE, NOWHERE, NOWHERE],
          "special": NONE, "looks": [
             {"name": "grass", "desc": "The grass is very lush and a health green."},
             {"name": "trees", "desc": "Tall, medium and short, the trees are lush and healthy."},
             {"name": "flowers", "desc": "Small white and yellow flowers are in the garden beds."}]},
 
-        {"id": 4, "name": "Inside the Entrance Hall", "type": RoomTypes.INSIDE,
+        {"id": 1004, "name": "Inside the Entrance Hall", "type": RoomTypes.INSIDE,
          "desc": "A small square room acts as an entrance to a dark hallway.  There is a small painting on the wall " +
                  "and the floor is covered by a carpet.",
-         "exits": [NOWHERE, 5, NOWHERE, 2, NOWHERE, NOWHERE],
+         "exits": [NOWHERE, 1005, NOWHERE, 1002, NOWHERE, NOWHERE],
          "special": NONE, "looks": [
             {"name": "painting", "desc": "A small painting of a bowl of fruit."},
             {"name": "carpet", "desc": "The carpet is made of soft green wool."}]},
 
-        {"id": 5, "name": "A Dark Hallway", "type": RoomTypes.INSIDE,
+        {"id": 1005, "name": "A Dark Hallway", "type": RoomTypes.INSIDE,
          "desc": "This hallway is long and quite dark.  The floor feels soft and deadens the sound a little.  " +
                  "Empty candle holder can just be seen on the walls.",
-         "exits": [NOWHERE, 6, NOWHERE, 4, NOWHERE, NOWHERE],
+         "exits": [NOWHERE, 1006, NOWHERE, 1004, NOWHERE, NOWHERE],
          "special": NONE, "looks": []},
 
-        {"id": 6, "name": "A Nexus in the Hallway", "type": RoomTypes.INSIDE,
+        {"id": 1006, "name": "A Nexus in the Hallway", "type": RoomTypes.INSIDE,
          "desc": "The hallway comes to an end and rooms branch off it.  Food smells drift in from the" +
                  "north and there is a small room to the south.  The soft carpet is ragged here.",
-         "exits": [7, 9, 8, 5, NOWHERE, NOWHERE],
+         "exits": [1007, 1009, 1008, 1005, NOWHERE, NOWHERE],
          "special": NONE, "looks": []},
 
-        {"id": 7, "name": "The Kitchen", "type": RoomTypes.INSIDE,
+        {"id": 1007, "name": "The Kitchen", "type": RoomTypes.INSIDE,
          "desc": "A large wooden table is in the center of the kitchen.  Small cupboards line the walls.",
-         "exits": [NOWHERE, NOWHERE, 6, NOWHERE, NOWHERE, NOWHERE],
+         "exits": [NOWHERE, NOWHERE, 1006, NOWHERE, NOWHERE, NOWHERE],
          "special": NONE, "looks": []},
 
-        {"id": 8, "name": "A Small Bedroom", "type": RoomTypes.INSIDE,
+        {"id": 1008, "name": "A Small Bedroom", "type": RoomTypes.INSIDE,
          "desc": "This room is rather small, but the floor is soft and the walls are brightly coloured.",
-         "exits": [6, NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE],
+         "exits": [1006, NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE],
          "special": NONE, "looks": []},
 
-        {"id": 9, "name": "The Back Room", "type": RoomTypes.INSIDE,
+        {"id": 1009, "name": "The Back Room", "type": RoomTypes.INSIDE,
          "desc": "This large room has large windows and a set or stairs going up to the next floor.  There is also " +
                  "a large wooden door that has been wedged open.",
-         "exits": [NOWHERE, 11, NOWHERE, 6, 10, NOWHERE],
+         "exits": [NOWHERE, 1011, NOWHERE, 1006, 1010, NOWHERE],
          "special": NONE, "looks": []},
 
-        {"id": 10, "name": "The Attic", "type": RoomTypes.INSIDE,
+        {"id": 1010, "name": "The Attic", "type": RoomTypes.INSIDE,
          "desc": "This dark and dusty room has a lot of junk scattered around the place.  The is a small window " +
                  "looking out over the city.",
-         "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, 9],
+         "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, 1009],
          "special": NONE, "looks": []},
 
-        {"id": 11, "name": "A Small Alleyway", "type": RoomTypes.CITY,
+        {"id": 1011, "name": "A Small Alleyway", "type": RoomTypes.CITY,
          "desc": "A Small Alleyway",
-         "exits": [NOWHERE, NOWHERE, NOWHERE, 9, NOWHERE, NOWHERE],
+         "exits": [NOWHERE, NOWHERE, NOWHERE, 1009, NOWHERE, NOWHERE],
          "special": "City_Bell", "looks": [
             {"name": "dirt", "desc": "small piles of dirt and rubbish line the alleyway"}]}
     ]
 
-    global max_room_id
-    for r in new_rooms:
-        if r["id"] > max_room_id:
-            max_room_id = r["id"]
+    global g_max_room_id
+    global g_min_room_id
+    for r in g_the_world:
+        if r["id"] > g_max_room_id:
+            g_max_room_id = r["id"]
+        if r["id"] < g_min_room_id:
+            g_min_room_id = r["id"]
+        # TODO: Check exits
 
-    return new_rooms
+    return g_the_world
 
 
-def find_room(room_id, rooms):
+def find_room(room_id, rooms=g_the_world):
+    """
+    Find a given room by ID
+    :param room_id: The ID of the room we are looking for
+    :param rooms: A list of rooms to search (defaults to the global world list)
+    :return: A room object and an index
+    """
     rm = {}
-    global max_room_id
-    if (room_id >= 0) or (room_id <= max_room_id):
-        for r in rooms:
+    f_idx = NOWHERE
+    if (room_id >= 0) or (room_id <= g_max_room_id):
+        for idx, r in enumerate(rooms):
             if r["id"] == room_id:
+                logging.debug("Found room id [{}] at index [{}]".format(room_id, idx))
                 rm = r
-    return rm
+                f_idx = idx
+    else:
+        logging.error('Search ID outside world bounds.  The ID must be in the range [0 <= ID <= {}]'
+                      .format(g_max_room_id))
+    return rm, f_idx
 
 
-def print_exit_detail(dr, room, rooms):
+def print_exit_detail(dr, room, player=g_the_player, rooms=g_the_world):
     """
-    :param dr:
-    :param room:
-    :param rooms:
-    :return:
+    :param dr:  The identifier for the direction to display.
+    :param room:  A room to display the exits for.
+    :param player:  The player to show details to
+    :param rooms:  A list of rooms to search.
+    :return: True if the call succeeds
     """
-    global directions
+    if not is_admin(player):
+        # not allowed
+        logging.warning("Attempt to show exit details to player [{}]".format(player["name"]))
+        return False
+
     if (dr < Directions.NORTH) or (dr >= Directions.NUM_DIRS):
         # bad direction
-        return
-    elif len(room) == 0:
+        logging.error("Attempt to get detail for invalid exit direction [{}]".format(dr))
+        return False
+
+    if len(room) == 0:
         # bad room
-        return
-    elif len(room["exits"]) < Directions.NUM_DIRS:
+        logging.error("Attempt to get exit detail for invalid room")  # it's a empty ref, nothing we can identify
+        return False
+
+    if len(room["exits"]) < Directions.NUM_DIRS:
         # room has bad exits
-        return
+        logging.error("Room [{}] does not have enough exit fields".format(rm["id"]))
+        return False
 
     exits = room["exits"]
-    ext = exits[dr]
-    if ext != NOWHERE:
+    ex_dest_id = exits[dr]
+    to_room = find_room(ex_dest_id, rooms)
+
+    if len(to_room) == 0:
+        # Exit room is bad
+        logging.error("The specified exit [{dir_name}] from room [{rm_id}] leads to a non-existent room [{to_id}]"
+                      .format(dir_name=g_directions[dr]["name"], rm_id=rm["id"], to_id=ex_dest_id))
+        return False
+
+    # If the exit leads somewhere we can write some details
+    if ex_dest_id != NOWHERE:
         print('\t{yel}{dname:5s}: [{cyan}{exnum:3d}:{exname}{yel}]{norm}'.format(yel=Screen.fg.YELLOW,
-              cyan=Screen.fg.CYAN, norm=Screen.fg.NRM, exnum=ext,
-              exname=find_room(ext, rooms)["name"], dname=directions[dr]["name"]))
-    return
+              cyan=Screen.fg.CYAN, norm=Screen.fg.NRM, exnum=ex_dest_id,
+              exname=to_room["name"], dname=g_directions[dr]["name"]))
+    return True
 
 
-def print_room_details(room_id, rooms):
-    global max_room_id
-    if (room_id > max_room_id) or (room_id < 0):
-        return
+def print_room_details(room_id, player=g_the_player, rooms=g_the_world):
+    """
+    Print dev/design details about a room
+    :param room_id:  The id of the room to get details for.
+    :param player:  The player to show details to.
+    :param rooms:  The list of rooms to search.
+    :return True if the details were printed:
+    """
+    if not is_admin(player):
+        logging.error("Attempt to print details for room [{}] from non admin player [{}]"
+                      .format(room_id, player["name"]))
+        return False
+
+    elif (room_id > g_max_room_id) or (room_id < g_min_room_id):
+        logging.error("Attempt to print details for room [{}] outside world".format(room_id))
+        return False
+
     else:
         rm = find_room(room_id, rooms)
         if len(rm) >= 1:
@@ -364,12 +463,13 @@ def print_room_details(room_id, rooms):
                     print("{yel}Name: [{cyan}{lname}{yel}], Description: [{cyan}{ldesc}{yel}]{norm}".format(
                         yel=Screen.fg.YELLOW, cyan=Screen.fg.CYAN, norm=Screen.fg.NRM,
                         lname=lk["name"], ldesc=lk["desc"]))
+    return True
 
 
-def test_all_rooms(rooms):
+def test_all_rooms(player=g_the_player, rooms=g_the_world):
     """
-    print all rooms
-
+    test method: print all rooms
+    :param player:
     :param rooms:  a list of all rooms as unordered dictionaries
     :return:
     """
@@ -379,15 +479,17 @@ def test_all_rooms(rooms):
     # print("\033[30;100m*\033[97;101m*\033[97;102m*\033[97;103m*\033[97;104m*\033[97;105m*\033[97;106m*\033[30;107m*\033[0m")
     print("There are [{}] rooms in the world".format(len(rooms)))
     for r in rooms:
-        print_room_details(r["id"], rooms)
+        print_room_details(r["id"], player=player, rooms=rooms)
         print()
+
     logging.debug("Room test dump finished.")
 
 
-def room_get_exits(room_id, rooms):
+def room_get_exit_abbrevs(room_id, player=g_the_player, rooms=g_the_world):
     """
-    return a list of valid directions
+    return a list of valid direction abbreviations
     :param room_id:  the id of the room to search
+    :param player:  The player object to check
     :param rooms:  a list of rooms to search
     :return: a list of valid direction ID's
     """
@@ -400,24 +502,28 @@ def room_get_exits(room_id, rooms):
         rm_exits = rm["exits"]
         if len(rm_exits) == 0:
             # no exists in the room
-            logger.error('Player in room with no exits, returning to start')
-            print('You are somehow stuck, teleporting you to the start room')
-            player["room"] = default_start_room
+            if is_admin(player):
+                # not a problem, admins can teleport
+                return exits
+            else:
+                logger.error('Player in room with no exits, returning to start')
+                print('You are somehow stuck, teleporting you to the start room')
+                player.update({"room", default_start_room})
         else:
             for dr, x in enumerate(rm_exits):
                 if x != NOWHERE:
-                    dr_info = directions[dr]
+                    dr_info = g_directions[dr]
                     exits.append(dr_info["abbrev"])
 
     return exits
 
 
-def can_go(player, dr, rooms):
+def can_go(dr, player=g_the_player, rooms=g_the_world):
     """
     Check if a player is capable of going in a direction
-    :param player:  The player that is moving
     :param dr:  The direction they want to move
-    :param rooms:  All of the rooms to check
+    :param player:  The player that is moving
+    :param rooms:  The rooms to check
     :return:  True/False if they can pass, the cost to move and the destination ID
     """
     rm = find_room(player["room"], rooms)
@@ -473,23 +579,33 @@ def can_go(player, dr, rooms):
     return True, mv_needed, exit_rm_num
 
 
-def move_player(player, to_id, from_id, rooms, cost):
+def move_player(to_id, from_id, cost, player=g_the_player, rooms=g_the_world):
+    """
+    Move a player/char from one room to another
+    :param to_id:
+    :param from_id:
+    :param cost:
+    :param player:
+    :param rooms:
+    :return:
+    """
     logging.debug("Move player {} from room [{}] to room [{}]".format(player["name"], from_id, to_id))
-    if player["moves"] < cost:
+    player_mv = player["moves"]
+    if player_mv < cost:
         pass  # no move
     elif to_id == NOWHERE:
         pass  # bad destination
     elif len(find_room(to_id, rooms)) == 0:
         pass  # missing destination
     else:
-        player["moves"]
-        player["moves"] -= cost
-        player["room"] = to_id
+        # Move is OK, update the players movement points and position
+        player.update({"moves": (player_mv-cost), "room": to_id})
         logging.debug('Player now has {} moves'.format(player["moves"]))
+        # TODO: update the world to move the player too, so we can easily see which players/mobs are in a room
     return
 
 
-def get_prompt_string(player):
+def get_prompt_string(player=g_the_player):
     s = "Health: "
     pct_h = (float(player["health"])/float(player["max_health"])) * 100.0
     if pct_h < 5.0:  # badly hurt
@@ -522,32 +638,40 @@ def get_prompt_string(player):
     return s
 
 
-def look_at_room(player, rooms):
-    if player["room"] == NOWHERE:
+def look_at_room(player=g_the_player, rooms=g_the_world):
+    player_rm_id = player["room"]
+    if player_rm_id == NOWHERE:
         print('Floating in the VOID, just look at all the stars!')
-    elif player["room"] < 0 or player["room"] > max_room_id:
+    elif player_rm_id < g_min_room_id or player_rm_id > g_max_room_id:
         print('Falling !!!!  Somehow you are outside the world, returning you to the start')
-        player["room"] = default_start_room
+        player.update({"room": default_start_room})
         look_at_room(player, rooms)
     else:
-        rm = find_room(player["room"], rooms)
+        rm = find_room(player_rm_id, rooms)
         if len(rm) != 0:
             # Remember that this appears white in pycharm :(
             print('{wht}{rname}{norm}'.format(wht=Screen.fg.BLACK, norm=Screen.fg.NRM, rname=rm["name"]))
             print('{mag}{rdesc}{norm}'.format(mag=Screen.fg.MAGENTA, norm=Screen.fg.NRM, rdesc=rm["desc"]))
-            ex = rm["exits"]
+            ex = rm["exits"]  # get the list of exits
             if len(ex) == 0:
+                # no exits
                 print("{yel}Exits: [{cyn} None {yel}]{norm}".format(yel=Screen.fg.YELLOW, cyn=Screen.fg.CYAN,
                       norm=Screen.fg.NRM))
             else:
-                exits = room_get_exits(player["room"], rooms)
+                exits = room_get_exit_abbrevs(player_rm_id, player, rooms)
                 print("{yel}Exits: [{cyn} {e_str} {yel}]{norm}".format(yel=Screen.fg.YELLOW, cyn=Screen.fg.CYAN,
                       norm=Screen.fg.NRM, e_str=' '.join(exits)))
     return
 
 
-def get_command(player, command_txt):
-    global commands
+def get_command(command_txt, player=g_the_player, rooms=g_the_world):
+    """
+    Find a command based on a string.
+    :param command_txt: The string to find
+    :param player: The player issuing the command
+    :param rooms: The list of rooms
+    :return The command ID, the command OBJECT and any extra values to use, or the NONE command if not found.
+    """
     command_txt = str(command_txt).lstrip().rstrip().lower()
     args = command_txt.split(' ')
     logging.debug('Got command test [{}] - {} args'.format(command_txt, len(args)))
@@ -556,50 +680,61 @@ def get_command(player, command_txt):
     else:
         for cmd in commands:
             if cmd["id"] == Commands.NONE:
-                continue  # skip the "NONE" command
+                continue  # skip matching for the "NONE" command
+            if cmd["id"] in find_room(player["room"], rooms).get("cmd_blacklist", []):
+                print("This command cannot work here")
             elif (cmd["long"] == args[0]) or (cmd["short"] == args[0]):
                 # we found it!!!!
                 logging.debug('Found command [{}:{}]'.format(cmd["id"], cmd["long"]))
-                # check the args
-                vals = {}
-                if "vals" in cmd:
-                    vals.update(cmd["vals"])
-                return cmd["id"], cmd, vals
+                if cmd.gets("admin", False) and not is_admin(player):
+                    # it's an admin command, and the player is not an admin
+                    logging.warning("Attempt to use admin command [{}] by non admin player [{}]"
+                                    .format(cmd["long"], player["name"]))
+                else:
+                    # check the args
+                    extra_values = {}
+                    if "vals" in cmd:
+                        extra_values.update(cmd["vals"])
+                    return cmd["id"], cmd, extra_values
 
     return Commands.NONE, commands[Commands.NONE], {}
 
 
 def main():
-    player = {"name": "Bob", "room": default_start_room, "moves": 20, "max_moves": 20, "health": 10, "max_health": 10,
-              "stuff": [], "admin": False}
+    global g_the_world
+    global g_the_player
+    g_the_player = {"name": "Bob", "room": g_default_start_room, "moves": 20, "max_moves": 20,
+                    "health": 10, "max_health": 10, "stuff": [], "admin": True}
 
     running = True
     counter = 0
 
     logging.info('Load all rooms')
-    all_rooms = make_rooms()
-    test_all_rooms(all_rooms)
+    make_rooms()
+    plr = g_the_player
+    plr["admin"] = True
+    test_all_rooms(player=plr)
     print('\n\n\n\n')
     while True:
         new_name = input("What is your name: ").lstrip().rstrip()
         if new_name == '':
             print('You must have a name, try again')
         elif new_name.lower() == 'dan':
-            player["name"] = "Dangerous Daniel"
-            player["room"] = dev_start_room
-            player["admin"] = True
-            player["moves"] = 100
-            player["max_moves"] = 100
-            player["health"] = 100
-            player["max_health"] = 100
+            g_the_player["name"] = "Dangerous Daniel"
+            g_the_player["room"] = g_dev_start_room
+            g_the_player["admin"] = True
+            g_the_player["moves"] = 100
+            g_the_player["max_moves"] = 100
+            g_the_player["health"] = 100
+            g_the_player["max_health"] = 100
             break
         else:
-            player["name"] = new_name
-            player["room"] = default_start_room
+            g_the_player["name"] = new_name
+            g_the_player["room"] = g_default_start_room
             break
-        # end while True
-    print('Hello {}, welcome to the world'.format(player["name"]))
-    look_at_room(player, all_rooms)
+            # end while True
+    print('Hello {}, welcome to the world'.format(g_the_player["name"]))
+    look_at_room()
 
     logging.info('Start main loop')
     while running:
@@ -610,15 +745,15 @@ def main():
             logging.info('Game is now quitting')
             running = False
 
-        cmd_txt = input("{} Command: ".format(get_prompt_string(player)))
-        cid, cmd, vals = get_command(player, cmd_txt)
+        cmd_txt = input("{} Command: ".format(get_prompt_string()))
+        cid, cmd, vals = get_command(cmd_txt)
 
         if cid == Commands.NONE:
             print("I don't understand the command [{}], try again".format(cmd_txt))
 
         elif cid == Commands.LOOK:
             if len(vals) == 0:
-                look_at_room(player, all_rooms)
+                look_at_room()
             else:
                 print('Cannot look at things yet')
 
@@ -633,13 +768,13 @@ def main():
             else:
                 m_dir = vals["direction"]
                 # check if the abbreviation for this direction is in the exit list
-                if directions[m_dir]["abbrev"] not in room_get_exits(player["room"], all_rooms):
-                    print('You cannot go {} from here'.format(directions[m_dir]["name"]))
+                if g_directions[m_dir]["abbrev"] not in room_get_exits(g_the_player["room"]):
+                    print('You cannot go {} from here'.format(g_directions[m_dir]["name"]))
                 else:
-                    can_pass, cost, dest_id = can_go(player, m_dir, all_rooms)
+                    can_pass, cost, dest_id = can_go(m_dir, g_the_player, all_rooms)
                     if can_pass and (cost > 0) and (dest_id != NOWHERE):
-                        move_player(player, dest_id, player["room"], all_rooms, cost)
-                        look_at_room(player, all_rooms)
+                        move_player(dest_id, player["room"], cost)
+                        look_at_room()
         else:
             print("Unknown command [{}], try again".format(cmd_txt))
 
