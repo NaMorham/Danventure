@@ -1,0 +1,27 @@
+{
+  "paths": {
+    "world_files": "wld",
+    "object_files": "objs",
+    "mob_files": "mobs",
+    "zon_files": "zone"
+  },
+  "zones": [
+    {
+      "id": 10,
+      "wld_file": "10.wld.json",
+      "obj_file": "10.obj.json",
+      "mob_file": "10.mob.json",
+      "zone_file": "10.zone.json"
+    },
+    {
+      "id": 11,
+      "wld_file": "11.wld.json",
+      "obj_file": "11.obj.json",
+      "mob_file": "11.mob.json",
+      "zone_file": "11.zone.json"
+    }
+  ],
+  "other": {
+    "path": "other"
+  }
+}

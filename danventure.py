@@ -1,6 +1,8 @@
 import logging
 import math
 import sys
+import pathlib
+import json
 from time import sleep
 
 logger = logging.getLogger()
@@ -972,14 +974,13 @@ def load_gen_rooms():
     }
 
 
-def test_load_json():
-    import json
+def test_load_json_wld(wld_path, allow_overwrite=False):
     global g_the_world
     load_gen_rooms()
-    allow_overwrite = False
+
     print("There are [{}] rooms in the world".format(len(g_the_world)))
     try:
-        with open("wld/10/10.wld.json") as fp:
+        with open(wld_path) as fp:
             tmp = json.load(fp)
             for rm in tmp:
                 rm_id = rm.get("id", NOWHERE)
@@ -992,15 +993,116 @@ def test_load_json():
                 g_the_world[int(rm_id)] = rm
             # end for each room in file
     except FileNotFoundError as fnfe:
-        print ("Could not open file: {}".format(fnfe))
+        print("Could not open file: {}".format(fnfe))
 
     calc_max_min_world_new()
     print("There are [{}] rooms in the world".format(len(g_the_world)))
     return
 
 
+def test_load_json_world(wld_file_path):
+    return
+
+
+g_zones = {}
+
+
+def test_load_json_zone_data(zone_file_data_obj):
+    zone_file_data_obj = dict(zone_file_data_obj)
+    global g_zones
+    print("todo: {}".format(zone_file_data_obj))
+    zone_id = zone_file_data_obj.get("id", NOWHERE)
+    if zone_id == NOWHERE:
+        logging.error("Invalid zone id")
+        return False
+    if zone_id in g_zones:
+        logging.error("Zone id [{}] has already been loaded".format(zone_id))
+        return False
+
+    logging.debug("Loaded zone [{}]".format(zone_id))
+    return True
+
+
+def test_load_json_data(data_path):
+    data_file_path = pathlib.Path(data_path, "world.json")
+    logging.debug("Read world data from world files path [{}]".format(data_file_path.as_posix()))
+
+    try:
+        with open(data_file_path.as_posix(), mode="r") as data_fl:
+            data_obj = json.load(data_fl)
+            # get path data first
+            paths_obj = data_obj.get("paths", {})
+            if "world_files" not in paths_obj:
+                logging.error("Could not load world path info from file [{}]".format(data_file_path.as_posix()))
+                return False
+            if "object_files" not in paths_obj:
+                logging.error("Could not load object path info from file [{}]".format(data_file_path.as_posix()))
+                return False
+            if "mob_files" not in paths_obj:
+                logging.error("Could not load mobile path info from file [{}]".format(data_file_path.as_posix()))
+                return False
+            if "zon_files" not in paths_obj:
+                logging.error("Could not load zone path info from file [{}]".format(data_file_path.as_posix()))
+                return False
+
+            wld_path_str = str(paths_obj.get("world_files", "")).lstrip().rstrip()
+            if wld_path_str == "":
+                logging.error("Empty world path")
+                return False
+            wld_path = pathlib.Path(data_path, wld_path_str)
+            if not wld_path.exists():
+                logging.error("World files path [{}] does not exist".format(wld_path.as_posix()))
+                return False
+            logging.debug("Got world files path [{}]".format(wld_path.as_posix()))
+
+            obj_path_str = str(paths_obj.get("object_files", "")).lstrip().rstrip()
+            if obj_path_str == "":
+                logging.error("Empty object path")
+                return False
+            obj_path = pathlib.Path(data_path, obj_path_str)
+            if not obj_path.exists():
+                logging.error("Object files path [{}] does not exist".format(obj_path.as_posix()))
+                return False
+            logging.debug("Got object files path [{}]".format(obj_path.as_posix()))
+
+            mob_path_str = str(paths_obj.get("mob_files", "")).lstrip().rstrip()
+            if mob_path_str == "":
+                logging.error("Empty mobile path")
+                return False
+            mob_path = pathlib.Path(data_path, mob_path_str)
+            if not mob_path.exists():
+                logging.error("Mobile files path [{}] does not exist".format(mob_path.as_posix()))
+                return False
+            logging.debug("Got mobile files path [{}]".format(mob_path.as_posix()))
+
+            zon_path_str = str(paths_obj.get("zon_files", "")).lstrip().rstrip()
+            if zon_path_str == "":
+                logging.error("Empty zone path")
+                return False
+            zon_path = pathlib.Path(data_path, zon_path_str)
+            if not zon_path.exists():
+                logging.error("Zone files path [{}] does not exist".format(zon_path.as_posix()))
+                return False
+            logging.debug("Got zone files path [{}]".format(zon_path.as_posix()))
+
+            logging.debug("Read zone info from [{}]".format(data_file_path.as_posix()))
+            for zone_file_data in data_obj.get("zones", []):
+                if not test_load_json_zone_data(zone_file_data):
+                    logging.error("Failed to load zone data [{}]".format(zone_file_data))
+
+    except FileNotFoundError as fnfe:
+        logging.error("Could not read world file [{}] -> got [{}]".format(data_file_path.as_posix(), fnfe))
+        return False
+    except IOError as ioe:
+        logging.error("Got an IO error reading [{}] -> got [{}]".format(data_file_path.as_posix(), ioe))
+        return False
+
+    return True
+
+
 if __name__ == "__main__":
+    logger.setLevel(logging.DEBUG)
     # slice_test()
     # capitalise_test()
-    test_load_json()
+    test_load_json_data("data")
     # main()

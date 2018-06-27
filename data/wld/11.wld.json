@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1100,
+    "name": "The Grassy Knoll",
+    "type": 0,
+    "desc": "A small an open grassy hill.  A small house is visible to the south.",
+    "exits": [
+      -1,
+      -1,
+      -1,
+      1003,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": [
+      {
+        "name": "house",
+        "desc": "The house is fairly long and thin."
+      }
+    ]
+  }
+]
