@@ -1,0 +1,247 @@
+[
+  {
+    "id": 1000,
+    "name": "Dan's Dev Room",
+    "type": 0,
+    "desc": "This is a temporary dev room.  This is a plain white space for creating new stuff.",
+    "exits": [
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      1001
+    ],
+    "special": -1,
+    "looks": []
+  },
+  {
+    "id": 1001,
+    "name": "The South Garden",
+    "type": 1,
+    "desc": "This is a beautiful and lush garden.  The grass is green and there are flowers and trees all around the place.",
+    "exits": [
+      1002,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": [
+      {
+        "name": "grass",
+        "desc": "The grass is very lush and a health green."
+      },
+      {
+        "name": "trees",
+        "desc": "Tall, medium and short, the trees are lush and healthy."
+      },
+      {
+        "name": "flowers",
+        "desc": "Small white and yellow flowers are in the garden beds."
+      }
+    ]
+  },
+  {
+    "id": 1002,
+    "name": "Outside the House",
+    "type": 6,
+    "desc": "A small garden outside the front entrance.  Small garden beds full of flowers line the grass beside the path.",
+    "exits": [
+      1003,
+      1004,
+      1001,
+      -1,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": [
+      {
+        "name": "grass",
+        "desc": "The grass is very lush and a health green."
+      },
+      {
+        "name": "flowers",
+        "desc": "Small white and yellow flowers are in the garden beds."
+      },
+      {
+        "name": "path",
+        "desc": "A neat gravel path."
+      }
+    ]
+  },
+  {
+    "id": 1003,
+    "name": "The north garden",
+    "type": 1,
+    "desc": "This is a lush and beautiful garden.  The grass is green and there are flowers and trees all around the place.",
+    "exits": [
+      -1,
+      -1,
+      1002,
+      -1,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": [
+      {
+        "name": "grass",
+        "desc": "The grass is very lush and a health green."
+      },
+      {
+        "name": "trees",
+        "desc": "Tall, medium and short, the trees are lush and healthy."
+      },
+      {
+        "name": "flowers",
+        "desc": "Small white and yellow flowers are in the garden beds."
+      }
+    ]
+  },
+  {
+    "id": 1004,
+    "name": "Inside the Entrance Hall",
+    "type": 3,
+    "desc": "A small square room acts as an entrance to a dark hallway.  There is a small painting on the wall and the floor is covered by a carpet.",
+    "exits": [
+      -1,
+      1005,
+      -1,
+      1002,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": [
+      {
+        "name": "painting",
+        "desc": "A small painting of a bowl of fruit."
+      },
+      {
+        "name": "carpet",
+        "desc": "The carpet is made of soft green wool."
+      }
+    ]
+  },
+  {
+    "id": 1005,
+    "name": "A Dark Hallway",
+    "type": 3,
+    "desc": "This hallway is long and quite dark.  The floor feels soft and deadens the sound a little.  Empty candle holders can just be seen on the walls.",
+    "exits": [
+      -1,
+      1006,
+      -1,
+      1004,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": []
+  },
+  {
+    "id": 1006,
+    "name": "A Nexus in the Hallway",
+    "type": 3,
+    "desc": "The hallway comes to an end and rooms branch off it.  Food smells drift in from the north and there is a small room to the south.  The soft carpet is ragged here.",
+    "exits": [
+      1007,
+      1009,
+      1008,
+      1005,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": []
+  },
+  {
+    "id": 1007,
+    "name": "The Kitchen",
+    "type": 3,
+    "desc": "A large wooden table is in the center of the kitchen.  Small cupboards line the walls.",
+    "exits": [
+      -1,
+      -1,
+      1006,
+      -1,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": []
+  },
+  {
+    "id": 1008,
+    "name": "A Small Bedroom",
+    "type": 3,
+    "desc": "This room is rather small, but the floor is soft and the walls are brightly coloured.",
+    "exits": [
+      1006,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": []
+  },
+  {
+    "id": 1009,
+    "name": "The Back Room",
+    "type": 3,
+    "desc": "This large room has large windows and a set or stairs going up to the next floor.  There is also a large wooden door that has been wedged open.",
+    "exits": [
+      -1,
+      1011,
+      -1,
+      1006,
+      1010,
+      -1
+    ],
+    "special": -1,
+    "looks": []
+  },
+  {
+    "id": 1010,
+    "name": "The Attic",
+    "type": 3,
+    "desc": "This dark and dusty room has a lot of junk scattered around the place.  The is a small window looking out over the city.",
+    "exits": [
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      1009
+    ],
+    "special": -1,
+    "looks": []
+  },
+  {
+    "id": 1011,
+    "name": "A Small Alleyway",
+    "type": 5,
+    "desc": "A Small Alleyway",
+    "exits": [
+      -1,
+      -1,
+      -1,
+      1009,
+      -1,
+      -1
+    ],
+    "special": "City_Bell",
+    "looks": [
+      {
+        "name": "dirt",
+        "desc": "small piles of dirt and rubbish line the alleyway"
+      }
+    ]
+  }
+]

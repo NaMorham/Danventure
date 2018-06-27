@@ -237,6 +237,7 @@ def capitalise(s):
     :return:
     """
     # always the first letter
+    cp = ""
     s_len = len(s)
     if s_len >= 2:
         cp = s[0].upper() + s[1:]
@@ -259,6 +260,26 @@ def is_admin(player):
         return False
     else:
         return player["admin"]
+
+
+def calc_max_min_world():
+    global g_max_room_id
+    global g_min_room_id
+    for r in g_the_world:
+        if r["id"] > g_max_room_id:
+            g_max_room_id = r["id"]
+        if r["id"] < g_min_room_id:
+            g_min_room_id = r["id"]
+
+
+def calc_max_min_world_new():
+    global g_max_room_id
+    global g_min_room_id
+    for r in g_the_world:  # for each key num in the world
+        if r > g_max_room_id:
+            g_max_room_id = r
+        if r < g_min_room_id:
+            g_min_room_id = r
 
 
 def make_rooms():
@@ -359,15 +380,8 @@ def make_rooms():
             {"name": "dirt", "desc": "small piles of dirt and rubbish line the alleyway"}]}
     ]
 
-    global g_max_room_id
-    global g_min_room_id
-    for r in g_the_world:
-        if r["id"] > g_max_room_id:
-            g_max_room_id = r["id"]
-        if r["id"] < g_min_room_id:
-            g_min_room_id = r["id"]
-        # TODO: Check exits
-
+    # TODO: Check exits
+    calc_max_min_world()
     return g_the_world
 
 
@@ -417,7 +431,7 @@ def print_exit_detail(dr, room, player, world):
 
     if len(room["exits"]) < Directions.NUM_DIRS:
         # room has bad exits
-        logging.error("Room [{}] does not have enough exit fields".format(rm["id"]))
+        logging.error("Room [{}] does not have enough exit fields".format(room["id"]))
         return False
 
     exits = room["exits"]
@@ -530,7 +544,7 @@ def room_get_exit_abbrevs(room_id, player, world):
             else:
                 logger.error('Player in room with no exits, returning to start')
                 print('You are somehow stuck, teleporting you to the start room')
-                player.update({"room", default_start_room})
+                player.update({"room", g_default_start_room})
         else:
             for dir_num, x in enumerate(rm_exits):
                 if x != NOWHERE:
@@ -568,7 +582,7 @@ def can_go(dr, player, world):
     # does the exit exist?
     exit_rm_num = rm["exits"][dr]
     if exit_rm_num == NOWHERE:
-        logger.error("Invalid exit [{}] from room [{}]".format(directions[dr]["name"], player_rm))
+        logger.error("Invalid exit [{}] from room [{}]".format(g_directions[dr]["name"], player_rm))
         print('{red}The exit {d_name} does not lead anywhere{norm}'.format(red=Screen.fg.RED, norm=Screen.fg.NRM,
                                                                            d_name=g_directions[dr]["name"]))
         return False, 0, NOWHERE
@@ -800,7 +814,7 @@ def show_help(player):
             print()
             continue
         else:
-            cmd = g_all_commands[c["id"]]["long"]
+            cmd = g_all_commands[int(c["id"])]["long"]
         desc = c.get("desc", "TODO")
 
         print("{ccmd}{cmd:>20s}{norm} : {desc}".format(ccmd=Screen.fg.CYAN, cmd=cmd, norm=Screen.fg.NRM, desc=desc))
@@ -826,7 +840,7 @@ def main():
 
     if len(g_the_world) == 0:
         print("No world data found, Exiting...")
-        logging.Error("Empty world data")
+        logging.error("Empty world data")
         exit(1)
 
     while True:
@@ -938,7 +952,55 @@ def capitalise_test():
         print("capitalise({}) -> \"{}\"".format(t, capitalise(t)))
 
 
+def load_gen_rooms():
+    global g_the_world
+    g_the_world = {
+        # Zone 0 - up to 100 rooms, use for system and common rooms
+        0: {"id": 0, "name": "The void", "type": RoomTypes.CITY,
+            "desc": "There is nothing here.  You are floating in an inky blackness, but look at all the stars!",
+            "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE],
+            "special": NONE, "looks": [
+                {"name": "stars",
+                 "desc": "The stars appear at the same time to be right next to you and somehow far away"}
+            ]
+            },
+        1: {"id": 1, "name": "Dead!", "type": RoomTypes.DEV,
+            "desc": "You are dead, Dead, DEAD.  Maybe you should try and respawn.",
+            "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, 1001],
+            "special": "Respawn", "looks": []
+            }
+    }
+
+
+def test_load_json():
+    import json
+    global g_the_world
+    load_gen_rooms()
+    allow_overwrite = False
+    print("There are [{}] rooms in the world".format(len(g_the_world)))
+    try:
+        with open("wld/10/10.wld.json") as fp:
+            tmp = json.load(fp)
+            for rm in tmp:
+                rm_id = rm.get("id", NOWHERE)
+                if rm_id == NOWHERE:
+                    continue  # ignore it, we do not care
+
+                if not allow_overwrite and rm_id in g_the_world:
+                    continue  # already there and not overwriting
+
+                g_the_world[int(rm_id)] = rm
+            # end for each room in file
+    except FileNotFoundError as fnfe:
+        print ("Could not open file: {}".format(fnfe))
+
+    calc_max_min_world_new()
+    print("There are [{}] rooms in the world".format(len(g_the_world)))
+    return
+
+
 if __name__ == "__main__":
     # slice_test()
     # capitalise_test()
-    main()
+    test_load_json()
+    # main()
