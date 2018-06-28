@@ -3,7 +3,7 @@ import math
 import sys
 import pathlib
 import json
-from time import sleep
+# from time import sleep
 
 logger = logging.getLogger()
 # logger.setLevel(logging.DEBUG)
@@ -246,6 +246,17 @@ def capitalise(s):
     elif s_len == 1:
         cp = s.upper()
     return cp
+
+
+def wrap_text(text, wrap_col = 80):
+    s = []
+    rem = str(text)
+    while len(rem) >= wrap_col:
+        k = rem[:wrap_col].rfind(' ')
+        s.append(rem[:k])
+        rem = rem[k+1:]
+    s.append(rem)
+    return '\n'.join(s)
 
 
 def is_admin(player):
@@ -547,7 +558,7 @@ def print_room_details(room_id, player, world):
                   .format(yel=Screen.fg.YELLOW, cyan=Screen.fg.CYAN, norm=Screen.fg.NRM, rnum=rm["id"],
                           rname=rm["name"], rtype=rm["type"], rtypes=g_room_types[rm["type"]]["name"]))
             print('{yel}Description:{norm}'.format(yel=Screen.fg.YELLOW, norm=Screen.fg.NRM))
-            print('{cyan}{rdesc}{norm}'.format(norm=Screen.fg.NRM, cyan=Screen.fg.CYAN, rdesc=rm["desc"]))
+            print('{cyan}{rdesc}{norm}'.format(norm=Screen.fg.NRM, cyan=Screen.fg.CYAN, rdesc=wrap_text(rm["desc"])))
             print('{yel}Exits:{norm}'.format(yel=Screen.fg.YELLOW, norm=Screen.fg.NRM))
             print_exit_detail(Directions.NORTH, rm, player, world)
             print_exit_detail(Directions.EAST, rm, player, world)
@@ -761,8 +772,8 @@ def can_go(dr, player, world):
         return False, 0, NOWHERE
 
     # does the player have enough moves left
-    from_type = g_room_types[rm["type"]]                      # get the from type
-    to_type = g_room_types[dest_rm["type"]]                   # get the to type
+    from_type = g_room_types[rm["type"]]                    # get the from type
+    to_type = g_room_types[dest_rm["type"]]                 # get the to type
     ave = (from_type["mv_cost"] + to_type["mv_cost"]) // 2  # get the average cost of the 2 rooms
     mv_needed = int(math.ceil(ave))                         # must be an integer
     if mv_needed > player["moves"]:
@@ -950,7 +961,7 @@ def look_at_room(player, rooms):
         if len(rm) != 0:
             # Remember that this appears white in pycharm :(
             print('{name}{rname}{norm}'.format(name=Screen.fg.BLUE, norm=Screen.fg.NRM, rname=rm["name"]))
-            print('{body}{rdesc}{norm}'.format(body=Screen.fg.GREEN, norm=Screen.fg.NRM, rdesc=rm["desc"]))
+            print('{body}{rdesc}{norm}'.format(body=Screen.fg.GREEN, norm=Screen.fg.NRM, rdesc=wrap_text(rm["desc"])))
             ex = rm["exits"]  # get the list of exits
             if len(ex) == 0:
                 # no exits
