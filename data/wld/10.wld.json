@@ -80,7 +80,7 @@
     "desc": "This is a lush and beautiful garden.  The grass is green and there are flowers and trees all around the place.",
     "exits": [
       -1,
-      -1,
+      1100,
       1002,
       -1,
       -1,
