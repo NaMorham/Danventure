@@ -1001,16 +1001,16 @@ def test_load_json_wld(wld_path, allow_overwrite=False):
 
 
 def test_load_json_world(wld_file_path):
-    return
+    print("todo, read [{}]".format(wld_file_path))
+    return True
 
 
 g_zones = {}
 
 
-def test_load_json_zone_data(zone_file_data_obj):
+def test_load_json_zone_data(zone_file_data_obj, wld_path, obj_path, mob_path, zon_path):
     zone_file_data_obj = dict(zone_file_data_obj)
     global g_zones
-    print("todo: {}".format(zone_file_data_obj))
     zone_id = zone_file_data_obj.get("id", NOWHERE)
     if zone_id == NOWHERE:
         logging.error("Invalid zone id")
@@ -1019,8 +1019,20 @@ def test_load_json_zone_data(zone_file_data_obj):
         logging.error("Zone id [{}] has already been loaded".format(zone_id))
         return False
 
+    print("todo: {}".format(zone_file_data_obj))
+    wld_file = zone_file_data_obj.get("wld_file", "")
+    loaded = False
+    if wld_file == '':
+        logging.error("No world file path for zone [{}]".format(zone_id))
+    else:
+        wld_file_path = pathlib.Path(wld_path, wld_file)
+        if not wld_file_path.exists():
+            logging.error("World file [{}] for zone [{}] does not exist".format(wld_file_path.as_posix(), zone_id))
+        else:
+            loaded = test_load_json_world(wld_file_path.as_posix())
+
     logging.debug("Loaded zone [{}]".format(zone_id))
-    return True
+    return loaded
 
 
 def test_load_json_data(data_path):
@@ -1087,7 +1099,8 @@ def test_load_json_data(data_path):
 
             logging.debug("Read zone info from [{}]".format(data_file_path.as_posix()))
             for zone_file_data in data_obj.get("zones", []):
-                if not test_load_json_zone_data(zone_file_data):
+                if not test_load_json_zone_data(zone_file_data, wld_path.as_posix(), obj_path.as_posix(),
+                                                mob_path.as_posix(), zon_path.as_posix()):
                     logging.error("Failed to load zone data [{}]".format(zone_file_data))
 
     except FileNotFoundError as fnfe:
