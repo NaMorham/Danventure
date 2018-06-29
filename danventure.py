@@ -3,6 +3,7 @@ import math
 import sys
 import pathlib
 import json
+import random
 # from time import sleep
 
 logger = logging.getLogger()
@@ -165,8 +166,9 @@ class Commands:
     HELP = 5
     SAY = 6
     TELEPORT = 7
+    STAT = 8
 
-    NUM_CMDS = 8  # Must be last, must be largest number
+    NUM_CMDS = 9  # Must be last, must be largest number
 
 
 g_all_commands = [
@@ -197,6 +199,9 @@ g_all_commands = [
     # Teleport moves the player.  If given 1 argument to the room with that ID, if given 2
     # arguments teleport should move the specified object or mob to the room ID
     {"id": Commands.TELEPORT, "long": "teleport", "short": "tp", "args": {"min": 1, "max": 2}, "admin": True},
+
+    # Print the statistics of a room, mob, obj or player
+    {"id": Commands.STAT, "long": "stat", "short": "", "args": {"min": 0, "max": 1}, "admin": True},
 
     # quit the game, no arguments
     {"id": Commands.QUIT, "long": "quit", "short": "q", "args": {"min": 0, "max": 0}},
@@ -257,6 +262,140 @@ def wrap_text(text, wrap_col = 80):
         rem = rem[k+1:]
     s.append(rem)
     return '\n'.join(s)
+
+
+def get_min(a, b):
+    return a if a < b else b
+
+
+def get_max(a, b):
+    return a if a > b else b
+
+
+def limit_val(min_v, max_v, v):
+    mn = get_min(min_v, max_v)
+    mx = get_max(min_v, max_v)
+    return get_min(mx, get_max(v, mn))
+
+
+def pass_fail_str(val, extra=""):
+    return str("{cgrn}PASS{nrm}".format(cgrn=Screen.fg.GREEN, nrm=Screen.fg.NRM) if val else\
+               "{cred}FAIL{nrm}".format(cred=Screen.fg.RED, nrm=Screen.fg.NRM)) +\
+               str(": " + extra) if len(extra) > 0 else ""
+
+
+def dice(sides, num=1, add=0):
+    total = 0
+    if (sides >= 1) and (num > 0):
+        for c in range(0, num):
+            v = random.randint(1, sides)
+            # print("roll {:2d}/{:2d}: dice({}) --> {}".format(c+1, num, sides, v))
+            total += v
+    return total + add
+
+
+def test_get_min(a, b, ex):
+    got = get_min(a, b)
+    result = (got == ex)
+    print(pass_fail_str(result, "get_min({:3d}, {:3d}); got {:3d}, expected {}".format(a, b, got, ex)))
+    return
+
+
+def test_get_max(a, b, ex):
+    got = get_max(a, b)
+    result = (got == ex)
+    print(pass_fail_str(result, "get_max({:3d}, {:3d}); got {:3d}, expected {}".format(a, b, got, ex)))
+    return
+
+
+def test_get_limit(mn, mx, v, ex):
+    got = limit_val(mn, mx, v)
+    result = (got == ex)
+    print(pass_fail_str(result, "limit_vsl({:3d}, {:3d}, {:3d}); got {:3d}, expected {}".format(mn, mx, v, got, ex)))
+    return
+
+
+def test_min_max():
+    test_get_min(0, 0, 0)
+    test_get_min(1, 0, 0)
+    test_get_min(0, 1, 0)
+
+    test_get_min(-2, -2, -2)
+    test_get_min(-2, 0, -2)
+    test_get_min(0, -2, -2)
+
+    test_get_min(2, 2, 2)
+    test_get_min(2, 0, 0)
+    test_get_min(0, 2, 0)
+
+    test_get_min(-5, 5, -5)
+    test_get_min(5, -5, -5)
+
+    test_get_min(100, 99, 99)
+    print("-----")
+    test_get_max(0, 0, 0)
+    test_get_max(1, 0, 1)
+    test_get_max(0, 1, 1)
+
+    test_get_max(-2, -2, -2)
+    test_get_max(-2, 0, 0)
+    test_get_max(0, -2, 0)
+
+    test_get_max(2, 2, 2)
+    test_get_max(2, 0, 2)
+    test_get_max(0, 2, 2)
+
+    test_get_max(-5, 5, 5)
+    test_get_max(5, -5, 5)
+
+    test_get_max(100, 99, 100)
+    print("-----")
+    # limit_val(min, max, val)
+    test_get_limit(0, 0, 0, 0)
+    test_get_limit(0, 1, 0, 0)
+    test_get_limit(1, 0, 0, 0)
+
+    test_get_limit(2, 5, 3, 3)  # is in range
+    test_get_limit(2, 5, 1, 2)  # below min
+    test_get_limit(2, 5, 7, 5)  # above max
+
+    # test reversed min/max
+    test_get_limit(5, 2, 3, 3)  # is in range
+    test_get_limit(5, 2, 1, 2)  # below min
+    test_get_limit(5, 2, 7, 5)  # above max
+
+    test_get_limit(-5, 5, 0, 0)
+    test_get_limit(-5, 5, -3, -3)
+    test_get_limit(-5, 5, 3, 3)
+    test_get_limit(-5, 5, -12, -5)
+    test_get_limit(-5, 5, 12, 5)
+    print("-----")
+
+    return
+
+
+def test_dice():
+    test_dice_fn(sides=0, min_v=0, max_v=0)
+    test_dice_fn(sides=0, min_v=0, max_v=1, add=1)
+    test_dice_fn(sides=2, num=1, add=1, min_v=2, max_v=3)
+    print("------")
+    test_dice_fn(sides=2, num=1, add=1, min_v=2, max_v=3, repeat=20)
+    print("------")
+    test_dice_fn(sides=6, num=1, add=0, min_v=1, max_v=6, repeat=20)
+    print("------")
+    test_dice_fn(sides=6, num=2, add=0, min_v=2, max_v=12, repeat=30)
+
+    return
+
+
+def test_dice_fn(sides, min_v, max_v, num=1, add=0, repeat=1):
+    repeat = get_max(repeat, 1)
+    for r in range(repeat):
+        got = dice(sides, num, add)
+        result = ((got <= max_v) and (got >= min_v))
+        print(pass_fail_str(result, "Roll {:3d}/{:3d}: [{} <= dice({}, {}, {}) <= {}]; got {}".format(r+1, repeat,
+              min_v, sides, num, add, max_v, got)))
+    return
 
 
 def is_admin(player):
@@ -618,7 +757,7 @@ def print_room_details_old(room_id, player, world):
     return True
 
 
-def test_all_rooms(player, world):
+def print_all_room_details(player, world):
     """
     test method: print all rooms
     :param player:  the player for whom to print
@@ -790,6 +929,8 @@ def can_go(dr, player, world):
     #    Are they sitting r standing
     #    Are they fighting
     #    Is there a door...
+    logging.debug("Player [{}] can move [{}] to [{}:{}] at a cost of [{}] moves".format(player["name"],
+                  g_directions[dr]["name"], exit_rm_num, dest_rm["name"], mv_needed))
     return True, mv_needed, exit_rm_num
 
 
@@ -971,6 +1112,8 @@ def look_at_room(player, rooms):
                 exits = room_get_exit_abbrevs(player_rm_id, player, rooms)
                 print("{yel}Exits: [{cyn} {e_str} {yel}]{norm}".format(yel=Screen.fg.YELLOW, cyn=Screen.fg.CYAN,
                       norm=Screen.fg.NRM, e_str=' '.join(exits)))
+        else:
+            logging.error("could not find room with id [{}]".format(player_rm_id))
     return
 
 
@@ -1023,7 +1166,7 @@ def get_command(command_txt, player, rooms):
             plr_rm = find_room(player["room"], rooms)
             if cmd["id"] in plr_rm.get("cmd_blacklist", []):
                 print("This command cannot work here")
-            elif (cmd["long"] == args[0]) or (cmd["short"] == args[0]):
+            elif (cmd["long"] == args[0]) or ((len(cmd["short"]) > 0) and (cmd["short"] == args[0])):
                 # we found it!!!!
                 logging.debug('Found command [{}:{}]'.format(cmd["id"], cmd["long"]))
                 if cmd.get("admin", False) and not is_admin(player):
@@ -1036,6 +1179,7 @@ def get_command(command_txt, player, rooms):
                     extra_values = {}
                     if "vals" in cmd:
                         extra_values.update(cmd["vals"])
+                    # TODO: expand command args
                     return cmd["id"], cmd, extra_values
 
     return Commands.NONE, g_all_commands[Commands.NONE], {}
@@ -1216,7 +1360,7 @@ def main():
     logging.info("[{}] rooms loaded".format(len(g_the_world)))
     # plr = g_the_player.copy()
     # plr["admin"] = True
-    # if test_all_rooms(plr, g_the_world):
+    # if print_all_room_details(plr, g_the_world):
     #     print('\n\n\n\n')
 
     if len(g_the_world) == 0:
@@ -1288,9 +1432,17 @@ def main():
                         print('You cannot go {} from here'.format(g_directions[m_dir]["name"]))
                     else:
                         can_pass, cost, dest_id = can_go(m_dir, g_the_player, g_the_world)
-                        if can_pass and (cost > 0) and (dest_id != NOWHERE):
+                        if can_pass and (cost >= 0) and (dest_id != NOWHERE):
                             move_player(dest_id, player_rm_num, cost, g_the_player, g_the_world)
                             look_at_room(g_the_player, g_the_world)
+                        else:
+                            logging.debug("Player [{}] cannot move [{}] to [{}:{}]".format(g_the_player["name"],
+                                          g_directions[m_dir]["name"], dest_id,
+                                          find_room(dest_id, g_the_world).get("name", "UNK")))
+
+            elif cid == Commands.STAT:
+                if is_admin(g_the_player):
+                    print_room_details(player_rm_num, g_the_player, g_the_world)
 
             elif cid == Commands.HELP:
                 show_help(g_the_player)
@@ -1321,7 +1473,7 @@ def main_old():
     g_the_world = make_rooms_old()
     # plr = g_the_player.copy()
     # plr["admin"] = True
-    # if test_all_rooms(plr, g_the_world):
+    # if print_all_room_details(plr, g_the_world):
     #     print('\n\n\n\n')
 
     if len(g_the_world) == 0:
@@ -1620,8 +1772,10 @@ def load_json_data(data_path):
 
 
 if __name__ == "__main__":
-    # logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
     # test_slice()
     # test_capitalise()
     # load_json_data("data")
-    main()
+    test_min_max()
+    test_dice()
+    # main()

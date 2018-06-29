@@ -5,8 +5,8 @@
     "type": 0,
     "desc": "A small an open grassy hill.  A small house is visible to the south.",
     "exits": [
-      -1,
-      -1,
+      1103,
+      1101,
       -1,
       1003,
       -1,
@@ -19,5 +19,69 @@
         "desc": "The house is fairly long and thin."
       }
     ]
+  },
+  {
+    "id": 1101,
+    "name": "Behind the Grassy Knoll",
+    "type": 0,
+    "desc": "A small an open grassy hill rises to the west and a long small house is visible to the south.  The soft murmuring sounds of a small city come from somewhere to the east.  The open grasses seem to wrap the small hill.",
+    "exits": [
+      1102,
+      -1,
+      -1,
+      1100,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": []
+  },
+  {
+    "id": 1102,
+    "name": "A Small Grassy Field near a Broken Down Wall.",
+    "type": 0,
+    "desc": "A small an open grassy hill rises to the south west and the remains of a stone wall are visible to the east.  From somewhere to the east, the soft murmurs of a city drift in..",
+    "exits": [
+      1150,
+      -1,
+      1101,
+      1103,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": []
+  },
+  {
+    "id": 1103,
+    "name": "Small Grasses Near a Hill",
+    "type": 0,
+    "desc": "A small an open grassy hill rises to the south and the peaked roof of a small house is visible beyond it to the south.  The soft murmuring sounds of a small city come from somewhere to the east.  The open grasses seem to wrap the small hill.",
+    "exits": [
+      -1,
+      1102,
+      1100,
+      -1,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": []
+  },
+  {
+    "id": 1150,
+    "name": "A Small Dark Garden",
+    "type": 0,
+    "desc": "A small an open grassy hill rises to the south and the peaked roof of a small house is visible beyond it to the south.  The soft murmuring sounds of a small city come from somewhere to the east.  The open grasses seem to wrap the small hill.",
+    "exits": [
+      -1,
+      -1,
+      1102,
+      -1,
+      -1,
+      -1
+    ],
+    "special": -1,
+    "looks": []
   }
 ]
