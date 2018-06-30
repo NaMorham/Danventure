@@ -4,6 +4,7 @@ import sys
 import pathlib
 import json
 import random
+from enum import Enum
 # from time import sleep
 
 logger = logging.getLogger()
@@ -103,7 +104,7 @@ class Screen:
         bg = ScrBNone
 
 
-class Directions:
+class Directions(Enum):
     NORTH = 0
     EAST = 1
     SOUTH = 2
@@ -115,16 +116,16 @@ class Directions:
 
 
 g_directions = [
-    {"name": "North", "abbrev": "N"},
-    {"name": "East", "abbrev": "E"},
-    {"name": "South", "abbrev": "S"},
-    {"name": "West", "abbrev": "W"},
-    {"name": "Up", "abbrev": "U"},
-    {"name": "Down", "abbrev": "D"}
+    {"name": "North", "abbrev": "N", "reverse": Directions.SOUTH},
+    {"name": "East", "abbrev": "E", "reverse": Directions.WEST},
+    {"name": "South", "abbrev": "S", "reverse": Directions.NORTH},
+    {"name": "West", "abbrev": "W", "reverse": Directions.EAST},
+    {"name": "Up", "abbrev": "U", "reverse": Directions.DOWN},
+    {"name": "Down", "abbrev": "D", "reverse": Directions.UP}
 ]
 
 
-class RoomTypes:
+class RoomTypes(Enum):
     DEV = 0
     GRASS = 1
     FOREST = 2
@@ -157,7 +158,7 @@ g_room_types = [
 ]
 
 
-class Commands:
+class Commands(Enum):
     NONE = 0
     LOOK = 1
     MOVE = 2
@@ -167,8 +168,9 @@ class Commands:
     SAY = 6
     TELEPORT = 7
     STAT = 8
+    WHERE = 9
 
-    NUM_CMDS = 9  # Must be last, must be largest number
+    NUM_CMDS = 10  # Must be last, must be largest number
 
 
 g_all_commands = [
@@ -196,13 +198,6 @@ g_all_commands = [
     {"id": Commands.MOVE, "long": "down", "short": "d", "args": {"min": 0, "max": 0},
      "vals": {"direction": Directions.DOWN}},
 
-    # Teleport moves the player.  If given 1 argument to the room with that ID, if given 2
-    # arguments teleport should move the specified object or mob to the room ID
-    {"id": Commands.TELEPORT, "long": "teleport", "short": "tp", "args": {"min": 1, "max": 2}, "admin": True},
-
-    # Print the statistics of a room, mob, obj or player
-    {"id": Commands.STAT, "long": "stat", "short": "", "args": {"min": 0, "max": 1}, "admin": True},
-
     # quit the game, no arguments
     {"id": Commands.QUIT, "long": "quit", "short": "q", "args": {"min": 0, "max": 0}},
     # Show the help.  If given 0 arguments, list the commands accessible to the player, if given 1
@@ -211,7 +206,48 @@ g_all_commands = [
 
     # Allows the player to say things (max 100 words, min 1)
     {"id": Commands.SAY, "long": "say", "short": "'", "args": {"min": 1, "max": 100}},
+
+    # Teleport moves the player.  If given 1 argument to the room with that ID, if given 2
+    # arguments teleport should move the specified object or mob to the room ID
+    {"id": Commands.TELEPORT, "long": "teleport", "short": "tp", "args": {"min": 1, "max": 2}, "admin": True},
+
+    # Print the statistics of a room, mob, obj or player
+    {"id": Commands.STAT, "long": "stat", "short": "", "args": {"min": 0, "max": 1}, "admin": True},
+
+    # Show the location of the player(s)
+    {"id": Commands.WHERE, "long": "where", "short": "wh", "args": {"min": 0, "max": 1}, "admin": True},
 ]
+
+
+class Stats(Enum):
+    STR = 0
+    DEX = 1
+    CON = 2
+    INT = 3
+    WIS = 4
+    CHA = 5
+    
+    HIT_POINTS = 6
+    MOVES = 7
+    MANA = 8
+    
+    EXP = 9
+    
+    NUM_STATS = 10   # Must be last
+
+
+g_stats = {
+    Stats.STR: {"long": "Strength", "short": "STR"},
+    Stats.DEX: {"long": "Dexterity", "short": "DEX"},
+    Stats.CON: {"long": "Constitution", "short": "CON"},
+    Stats.INT: {"long": "Intelligence", "short": "INT"},
+    Stats.WIS: {"long": "Wisdom", "short": "WIS"},
+    Stats.CHA: {"long": "Charisma", "short": "CHA"},
+    Stats.HIT_POINTS: {"long": "Hit Points", "short": "HP"},
+    Stats.MOVES: {"long": "Moves", "short": "MV"},
+    Stats.MANA: {"long": "Mana Points", "short": "MANA"},
+    Stats.EXP: {"long": "Experience", "short": "EXP"}
+}
 
 
 def get_room_type_name(room_id):
@@ -278,20 +314,21 @@ def limit_val(min_v, max_v, v):
     return get_min(mx, get_max(v, mn))
 
 
-def pass_fail_str(val, extra=""):
-    return str("{cgrn}PASS{nrm}".format(cgrn=Screen.fg.GREEN, nrm=Screen.fg.NRM) if val else\
-               "{cred}FAIL{nrm}".format(cred=Screen.fg.RED, nrm=Screen.fg.NRM)) +\
-               str(": " + extra) if len(extra) > 0 else ""
-
-
-def dice(sides, num=1, add=0):
+def dice(sides, num=1, add=0, histo=[]):
     total = 0
     if (sides >= 1) and (num > 0):
         for c in range(0, num):
             v = random.randint(1, sides)
-            # print("roll {:2d}/{:2d}: dice({}) --> {}".format(c+1, num, sides, v))
+            histo.append(v)
+            # logging.debug("roll {:2d}/{:2d}: dice({:2d}) --> {:3d}".format(c+1, num, sides, v))
             total += v
     return total + add
+
+
+def pass_fail_str(val, extra=""):
+    return str("{cgrn}PASS{nrm}".format(cgrn=Screen.fg.GREEN, nrm=Screen.fg.NRM) if val else\
+               "{cred}FAIL{nrm}".format(cred=Screen.fg.RED, nrm=Screen.fg.NRM)) +\
+               str(": " + extra) if len(extra) > 0 else ""
 
 
 def test_get_min(a, b, ex):
@@ -374,28 +411,75 @@ def test_min_max():
     return
 
 
-def test_dice():
-    test_dice_fn(sides=0, min_v=0, max_v=0)
-    test_dice_fn(sides=0, min_v=0, max_v=1, add=1)
-    test_dice_fn(sides=2, num=1, add=1, min_v=2, max_v=3)
-    print("------")
-    test_dice_fn(sides=2, num=1, add=1, min_v=2, max_v=3, repeat=20)
-    print("------")
-    test_dice_fn(sides=6, num=1, add=0, min_v=1, max_v=6, repeat=20)
-    print("------")
-    test_dice_fn(sides=6, num=2, add=0, min_v=2, max_v=12, repeat=30)
-
-    return
-
-
-def test_dice_fn(sides, min_v, max_v, num=1, add=0, repeat=1):
+def test_dice_fn(sides, num=1, add=0, repeat=1):
     repeat = get_max(repeat, 1)
+    calc_min = (num + add)
+    calc_max = (sides * num) + add
     for r in range(repeat):
-        got = dice(sides, num, add)
-        result = ((got <= max_v) and (got >= min_v))
-        print(pass_fail_str(result, "Roll {:3d}/{:3d}: [{} <= dice({}, {}, {}) <= {}]; got {}".format(r+1, repeat,
-              min_v, sides, num, add, max_v, got)))
+        rolls = []
+        got = dice(sides=sides, num=num, add=add, histo=rolls)
+        result = ((got <= calc_max) and (got >= calc_min))
+        print(pass_fail_str(result, "Roll {:3d}/{:3d}: [{} <= dice({}, {}, {}) <= {}]; got {} --> {}".format(r+1,
+              repeat, calc_min, sides, num, add, calc_max, got, rolls)))
     return
+
+
+def test_dice():
+    test_dice_fn(sides=0)  # 0d0 + 0  --> MUST equal 0
+    test_dice_fn(sides=0, add=1)  # 1d0 + 1  --> MUST equal 1
+    test_dice_fn(sides=2, num=1, add=1)  # 1d2 + 1 once
+    print("------")
+    test_dice_fn(sides=2, num=1, add=1, repeat=20)  # 1d2 + 1
+    print("------")
+    test_dice_fn(sides=6, num=1, add=0, repeat=20)  # 1d6 + 0
+    print("------")
+    test_dice_fn(sides=6, num=2, add=0, repeat=30)  # 2d6 + 0
+    print("------")
+    test_dice_fn(sides=4, num=1, add=10, repeat=50)  # 1d4 + 10
+    print("------")
+    test_dice_fn(sides=4, num=10, add=5, repeat=50)  # 10d4 + 5
+    print("------")
+    test_dice_fn(sides=4, num=100, add=5, repeat=50)  # 100d4 + 5
+    print("------")
+    test_dice_fn(sides=20, num=100, add=0, repeat=50)  # 100d20 + 0
+
+    print("------")
+    test_dice_fn(sides=0, num=100, add=0, repeat=10)  # 100d0 + 0
+    print("------")
+    test_dice_fn(sides=1, num=100, add=0, repeat=10)  # 100d1 + 0
+    print("------")
+    test_dice_fn(sides=2, num=100, add=0, repeat=10)  # 100d1 + 0
+    print("------")
+    test_dice_fn(sides=4, num=100, add=0, repeat=10)  # 100d1 + 0
+    print("------\nTest stat roll")
+    test_dice_fn(sides=6, num=2, add=6, repeat=10)  # 100d1 + 0
+
+    return
+
+
+def test_slice():
+    t1 = ""
+    print("    t1 = \"{}\"".format(t1))
+    print("t1[1:] = \"{}\"".format(t1[1:]))
+    print("t1[2:] = \"{}\"".format(t1[2:]))
+    t1 = "a"
+    print("    t1 = \"{}\"".format(t1))
+    print("t1[1:] = \"{}\"".format(t1[1:]))
+    print("t1[2:] = \"{}\"".format(t1[2:]))
+    t1 = "ab"
+    print("    t1 = \"{}\"".format(t1))
+    print("t1[1:] = \"{}\"".format(t1[1:]))
+    print("t1[2:] = \"{}\"".format(t1[2:]))
+    t1 = "abc"
+    print("    t1 = \"{}\"".format(t1))
+    print("t1[1:] = \"{}\"".format(t1[1:]))
+    print("t1[2:] = \"{}\"".format(t1[2:]))
+
+
+def test_capitalise():
+    tmp = {"bob", "Mike", "MacDonald", "McDougal", "macdonald", "mcdougal", "O'Rielly", "o'brian"}
+    for t in tmp:
+        print("capitalise({}) -> \"{}\"".format(t, capitalise(t)))
 
 
 def is_admin(player):
@@ -412,6 +496,63 @@ def is_admin(player):
         return False
     else:
         return player["admin"]
+
+
+def roll_stat():
+    """
+    Roll 3d6, keep top 2 and add 6
+    :return: top 2d6 + 6
+    """
+    # TODO: add race(s) and stat adjustments
+    rolls = []
+    _ = dice(6, add=0, num=3, histo=rolls)
+    rolls.sort(reverse=True)
+    return sum(rolls[:2]) + 6
+
+
+def gen_stats(hp_min=10, hp_max=20, mv_min=20, mv_max=40, mg_min=0, mg_max=8):
+    sts = {}
+    sts.update({Stats.STR: roll_stat()})
+    sts.update({Stats.DEX: roll_stat()})
+    sts.update({Stats.CON: roll_stat()})
+    sts.update({Stats.INT: roll_stat()})
+    sts.update({Stats.WIS: roll_stat()})
+    sts.update({Stats.CHA: roll_stat()})
+
+    sts.update({Stats.HIT_POINTS: dice((hp_max-hp_min+1), add=(hp_min-1))})
+    sts.update({Stats.MOVES: dice((mv_max-mv_min+1), add=(mv_min-1))})
+
+    tmp = random.randint(mg_min, mg_max)
+    if tmp > 0:
+        sts.update({Stats.MANA: (tmp*5)})
+    else:
+        sts.update({Stats.MANA: 0})
+    return sts
+
+
+def test_gen_stats():
+    num_tests = 10
+    for idx in range(num_tests):
+        print("{:2d}/{:2d}: gen_stats() == {}".format(idx+1, num_tests, gen_stats()))
+    return
+
+
+def new_player(player, name):
+    player.update("name", name)
+    player.update({"stats": gen_stats().update({Stats.EXP: 0})})
+    print(player)
+    return
+
+
+def test_roll_stat_fn():
+    v = roll_stat()
+    print(v)
+    return
+
+
+def test_roll_stat():
+    test_roll_stat_fn()
+    return
 
 
 def calc_max_min_world():
@@ -1346,118 +1487,252 @@ def show_help(player):
     return
 
 
-def main():
+def load_generic_rooms():
     global g_the_world
-    global g_the_player
-    g_the_player = {"name": "Bob", "room": g_default_start_room, "moves": 20, "max_moves": 20,
-                    "health": 10, "max_health": 10, "stuff": [], "admin": True}
-
-    running = True
-    counter = 0
-
-    logging.info('Load all rooms')
-    load_json_data("data")
-    logging.info("[{}] rooms loaded".format(len(g_the_world)))
-    # plr = g_the_player.copy()
-    # plr["admin"] = True
-    # if print_all_room_details(plr, g_the_world):
-    #     print('\n\n\n\n')
-
-    if len(g_the_world) == 0:
-        print("No world data found, Exiting...")
-        logging.error("Empty world data")
-        exit(1)
-
-    while True:
-        new_name = input("What is your name: ").lstrip().rstrip()
-        if new_name == '':
-            print('You must have a name, try again')
-        elif new_name.lower() == 'dan':
-            g_the_player["name"] = "Dangerous Daniel"
-            g_the_player["room"] = g_dev_start_room
-            g_the_player["admin"] = True
-            g_the_player["moves"] = 100
-            g_the_player["max_moves"] = 100
-            g_the_player["health"] = 100
-            g_the_player["max_health"] = 100
-            break
-        else:
-            g_the_player["name"] = capitalise(new_name)
-            g_the_player["room"] = g_default_start_room
-            g_the_player["admin"] = False
-            break
-        # end while True
-
-    print('Hello {}, welcome to the world'.format(g_the_player["name"]))
-    look_at_room(g_the_player, g_the_world)
-
-    logging.info('Start main loop')
-    while running:
-        player_rm_num = g_the_player["room"]
-
-        counter += 1
-        logging.debug('Counter is at {}'.format(counter))
-
-        if counter == 200:  # no more than 200 turns for testing
-            logging.info('Game is now quitting')
-            running = False
-
-        cmd_txt = input("{} Command: ".format(get_prompt_string(g_the_player))).lstrip().rstrip()
-
-        if len(cmd_txt) > 0:
-            cid, cmd, vals = get_command(cmd_txt, g_the_player, g_the_world)
-
-            if cid == Commands.NONE:
-                print("I don't understand the command [{}], try again".format(cmd_txt))
-
-            elif cid == Commands.LOOK:
-                if len(vals) == 0:
-                    look_at_room(g_the_player, g_the_world)
-                else:
-                    print('Cannot look at things yet')
-
-            elif cid == Commands.QUIT:
-                print('Goodbye')
-                running = False
-                continue
-
-            elif cid == Commands.MOVE:
-                m_dir = vals.get("direction", NONE)
-                if m_dir == NONE:
-                    print("Move where?")
-                else:
-                    # check if the abbreviation for this direction is in the exit list
-                    rm_exits = room_get_exit_abbrevs(player_rm_num, g_the_player, g_the_world)
-                    if g_directions[m_dir]["abbrev"] not in rm_exits:
-                        print('You cannot go {} from here'.format(g_directions[m_dir]["name"]))
-                    else:
-                        can_pass, cost, dest_id = can_go(m_dir, g_the_player, g_the_world)
-                        if can_pass and (cost >= 0) and (dest_id != NOWHERE):
-                            move_player(dest_id, player_rm_num, cost, g_the_player, g_the_world)
-                            look_at_room(g_the_player, g_the_world)
-                        else:
-                            logging.debug("Player [{}] cannot move [{}] to [{}:{}]".format(g_the_player["name"],
-                                          g_directions[m_dir]["name"], dest_id,
-                                          find_room(dest_id, g_the_world).get("name", "UNK")))
-
-            elif cid == Commands.STAT:
-                if is_admin(g_the_player):
-                    print_room_details(player_rm_num, g_the_player, g_the_world)
-
-            elif cid == Commands.HELP:
-                show_help(g_the_player)
-
-            else:
-                print("Unknown command [{}], try again".format(cmd_txt))
-
-        if (counter % 3) == 0:
-            regen_player(g_the_player)
-        # print()
-        # sleep(1)  # wait 1 second
-    # end while running
-
-    logging.debug("End of main method")
+    g_the_world = {
+        # Zone 0 - up to 100 rooms, use for system and common rooms
+        0: {"id": 0, "name": "The void", "type": RoomTypes.CITY,
+            "desc": "There is nothing here.  You are floating in an inky blackness, but look at all the stars!",
+            "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE],
+            "special": NONE, "looks": [
+                {"name": "stars",
+                 "desc": "The stars appear at the same time to be right next to you and somehow far away"}
+            ]
+            },
+        1: {"id": 1, "name": "Dead!", "type": RoomTypes.DEV,
+            "desc": "You are dead, Dead, DEAD.  Maybe you should try and respawn.",
+            "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, 1001],
+            "special": "Respawn", "looks": []
+            }
+    }
     return
+
+
+def load_generic_mobs():
+    return
+
+
+def load_generic_objs():
+    return
+
+
+def load_generic_zone():
+    return
+
+
+def test_load_json_wld(wld_path, allow_overwrite=False):
+    global g_the_world
+    load_generic_rooms()
+
+    print("There are [{}] rooms in the world".format(len(g_the_world)))
+    try:
+        with open(wld_path) as fp:
+            tmp = json.load(fp)
+            for rm in tmp:
+                rm_id = rm.get("id", NOWHERE)
+                if rm_id == NOWHERE:
+                    continue  # ignore it, we do not care
+
+                if not allow_overwrite and rm_id in g_the_world:
+                    continue  # already there and not overwriting
+
+                g_the_world[int(rm_id)] = rm
+            # end for each room in file
+    except FileNotFoundError as fnfe:
+        print("Could not open file: {}".format(fnfe))
+
+    calc_max_min_world()
+    print("There are [{}] rooms in the world".format(len(g_the_world)))
+    return
+
+
+def test_load_json_mobiles(mob_file_path, allow_overwrite=False):
+    print("todo, read [{}]".format(mob_file_path))
+    global g_the_world
+    return True
+
+
+def test_load_json_objects(obj_file_path, allow_overwrite=False):
+    print("todo, read [{}]".format(obj_file_path))
+    global g_the_world
+    return True
+
+
+def test_load_json_zones(zon_file_path, allow_overwrite=False):
+    print("todo, read [{}]".format(zon_file_path))
+    global g_the_world
+    return True
+
+
+def load_rooms_json(wld_file_path, allow_overwrite=False):
+    print("todo, read [{}]".format(wld_file_path))
+    global g_the_world
+
+    print("There are [{}] rooms in the world".format(len(g_the_world)))
+    try:
+        with open(wld_file_path) as fp:
+            tmp = json.load(fp)
+            for rm in tmp:
+                rm_id = rm.get("id", NOWHERE)
+                if rm_id == NOWHERE:
+                    continue  # ignore it, we do not care
+
+                if not allow_overwrite and rm_id in g_the_world:
+                    continue  # already there and not overwriting
+
+                logging.debug("Add room [{}:{}] to the world".format(rm_id, rm.get("name","")))
+                g_the_world[int(rm_id)] = rm
+            # end for each room in file
+    except FileNotFoundError as fnfe:
+        print("Could not open file: {}".format(fnfe))
+
+    calc_max_min_world()
+    print("There are [{}] rooms in the world".format(len(g_the_world)))
+    return True
+
+
+def load_json_zone_data(zone_file_data_obj, wld_path, obj_path, mob_path, zon_path):
+    zone_file_data_obj = dict(zone_file_data_obj)
+    global g_zones
+    zone_id = zone_file_data_obj.get("id", NOWHERE)
+    if zone_id == NOWHERE:
+        logging.error("Invalid zone id")
+        return False
+    if zone_id in g_zones:
+        logging.error("Zone id [{}] has already been loaded".format(zone_id))
+        return False
+
+    # load the rooms that make up the zone
+    wld_file = zone_file_data_obj.get("wld_file", "")
+    loaded = False
+    if wld_file == '':
+        logging.error("No world file path for zone [{}]".format(zone_id))
+    else:
+        wld_file_path = pathlib.Path(wld_path, wld_file)
+        if not wld_file_path.exists():
+            logging.error("World file [{}] for zone [{}] does not exist".format(wld_file_path.as_posix(), zone_id))
+        else:
+            loaded |= load_rooms_json(wld_file_path.as_posix())
+
+    # load data about mobiles native to the zone
+    mob_file = zone_file_data_obj.get("mob_file", "")
+    loaded = False
+    if mob_file == '':
+        logging.error("No mobile file path for zone [{}]".format(zone_id))
+    else:
+        mob_file_path = pathlib.Path(mob_path, mob_file)
+        if not mob_file_path.exists():
+            logging.error("Mobile file [{}] for zone [{}] does not exist".format(mob_file_path.as_posix(), zone_id))
+        else:
+            loaded |= test_load_json_mobiles(mob_file_path.as_posix())
+
+    # load data about objects belonging to the zone
+    obj_file = zone_file_data_obj.get("obj_file", "")
+    loaded = False
+    if mob_file == '':
+        logging.error("No objects file path for zone [{}]".format(zone_id))
+    else:
+        obj_file_path = pathlib.Path(obj_path, obj_file)
+        if not obj_file_path.exists():
+            logging.error("Objects file [{}] for zone [{}] does not exist".format(obj_file_path.as_posix(), zone_id))
+        else:
+            loaded |= test_load_json_objects(obj_file_path.as_posix())
+
+    # load data about the zone for resets
+    zon_file = zone_file_data_obj.get("zon_file", "")
+    loaded = False
+    if zon_file == '':
+        logging.error("No zone loading file path for zone [{}]".format(zone_id))
+    else:
+        zon_file_path = pathlib.Path(zon_path, zon_file)
+        if not zon_file_path.exists():
+            logging.error("Zone loading file [{}] for zone [{}] does not exist".format(zon_file_path.as_posix(), zone_id))
+        else:
+            loaded |= test_load_json_zones(zon_file_path.as_posix())
+
+    logging.debug("Loaded zone [{}]".format(zone_id))
+    return loaded
+
+
+def load_json_data(data_path):
+    global g_the_world
+    load_generic_rooms()
+
+    data_file_path = pathlib.Path(data_path, "world.json")
+    logging.debug("Read world data from world files path [{}]".format(data_file_path.as_posix()))
+
+    try:
+        with open(data_file_path.as_posix(), mode="r") as data_fl:
+            data_obj = json.load(data_fl)
+            # get path data first
+            paths_obj = data_obj.get("paths", {})
+            if "world_files" not in paths_obj:
+                logging.error("Could not load world path info from file [{}]".format(data_file_path.as_posix()))
+                return False
+            if "object_files" not in paths_obj:
+                logging.error("Could not load object path info from file [{}]".format(data_file_path.as_posix()))
+                return False
+            if "mob_files" not in paths_obj:
+                logging.error("Could not load mobile path info from file [{}]".format(data_file_path.as_posix()))
+                return False
+            if "zon_files" not in paths_obj:
+                logging.error("Could not load zone path info from file [{}]".format(data_file_path.as_posix()))
+                return False
+
+            wld_path_str = str(paths_obj.get("world_files", "")).lstrip().rstrip()
+            if wld_path_str == "":
+                logging.error("Empty world path")
+                return False
+            wld_path = pathlib.Path(data_path, wld_path_str)
+            if not wld_path.exists():
+                logging.error("World files path [{}] does not exist".format(wld_path.as_posix()))
+                return False
+            logging.debug("Got world files path [{}]".format(wld_path.as_posix()))
+
+            obj_path_str = str(paths_obj.get("object_files", "")).lstrip().rstrip()
+            if obj_path_str == "":
+                logging.error("Empty object path")
+                return False
+            obj_path = pathlib.Path(data_path, obj_path_str)
+            if not obj_path.exists():
+                logging.error("Object files path [{}] does not exist".format(obj_path.as_posix()))
+                return False
+            logging.debug("Got object files path [{}]".format(obj_path.as_posix()))
+
+            mob_path_str = str(paths_obj.get("mob_files", "")).lstrip().rstrip()
+            if mob_path_str == "":
+                logging.error("Empty mobile path")
+                return False
+            mob_path = pathlib.Path(data_path, mob_path_str)
+            if not mob_path.exists():
+                logging.error("Mobile files path [{}] does not exist".format(mob_path.as_posix()))
+                return False
+            logging.debug("Got mobile files path [{}]".format(mob_path.as_posix()))
+
+            zon_path_str = str(paths_obj.get("zon_files", "")).lstrip().rstrip()
+            if zon_path_str == "":
+                logging.error("Empty zone path")
+                return False
+            zon_path = pathlib.Path(data_path, zon_path_str)
+            if not zon_path.exists():
+                logging.error("Zone files path [{}] does not exist".format(zon_path.as_posix()))
+                return False
+            logging.debug("Got zone files path [{}]".format(zon_path.as_posix()))
+
+            logging.debug("Read zone info from [{}]".format(data_file_path.as_posix()))
+            for zone_file_data in data_obj.get("zones", []):
+                if not load_json_zone_data(zone_file_data, wld_path.as_posix(), obj_path.as_posix(),
+                                           mob_path.as_posix(), zon_path.as_posix()):
+                    logging.error("Failed to load zone data [{}]".format(zone_file_data))
+
+    except FileNotFoundError as fnfe:
+        logging.error("Could not read world file [{}] -> got [{}]".format(data_file_path.as_posix(), fnfe))
+        return False
+    except IOError as ioe:
+        logging.error("Got an IO error reading [{}] -> got [{}]".format(data_file_path.as_posix(), ioe))
+        return False
+
+    return True
 
 
 def main_old():
@@ -1565,217 +1840,137 @@ def main_old():
     return
 
 
-def test_slice():
-    t1 = ""
-    print("    t1 = \"{}\"".format(t1))
-    print("t1[1:] = \"{}\"".format(t1[1:]))
-    print("t1[2:] = \"{}\"".format(t1[2:]))
-    t1 = "a"
-    print("    t1 = \"{}\"".format(t1))
-    print("t1[1:] = \"{}\"".format(t1[1:]))
-    print("t1[2:] = \"{}\"".format(t1[2:]))
-    t1 = "ab"
-    print("    t1 = \"{}\"".format(t1))
-    print("t1[1:] = \"{}\"".format(t1[1:]))
-    print("t1[2:] = \"{}\"".format(t1[2:]))
-    t1 = "abc"
-    print("    t1 = \"{}\"".format(t1))
-    print("t1[1:] = \"{}\"".format(t1[1:]))
-    print("t1[2:] = \"{}\"".format(t1[2:]))
-
-
-def test_capitalise():
-    tmp = {"bob", "Mike", "MacDonald", "McDougal", "macdonald", "mcdougal", "O'Rielly", "o'brian"}
-    for t in tmp:
-        print("capitalise({}) -> \"{}\"".format(t, capitalise(t)))
-
-
-def load_gen_rooms():
+def main():
     global g_the_world
-    g_the_world = {
-        # Zone 0 - up to 100 rooms, use for system and common rooms
-        0: {"id": 0, "name": "The void", "type": RoomTypes.CITY,
-            "desc": "There is nothing here.  You are floating in an inky blackness, but look at all the stars!",
-            "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE],
-            "special": NONE, "looks": [
-                {"name": "stars",
-                 "desc": "The stars appear at the same time to be right next to you and somehow far away"}
-            ]
-            },
-        1: {"id": 1, "name": "Dead!", "type": RoomTypes.DEV,
-            "desc": "You are dead, Dead, DEAD.  Maybe you should try and respawn.",
-            "exits": [NOWHERE, NOWHERE, NOWHERE, NOWHERE, NOWHERE, 1001],
-            "special": "Respawn", "looks": []
-            }
-    }
+    global g_the_player
+    g_the_player = {"name": "Bob", "room": g_default_start_room, "moves": 20, "max_moves": 20,
+                    "health": 10, "max_health": 10, "stuff": [], "admin": True}
 
+    running = True
+    counter = 0
 
-def test_load_json_wld(wld_path, allow_overwrite=False):
-    global g_the_world
-    load_gen_rooms()
+    logging.info('Load all rooms')
+    load_json_data("data")
+    logging.info("[{}] rooms loaded".format(len(g_the_world)))
+    # plr = g_the_player.copy()
+    # plr["admin"] = True
+    # if print_all_room_details(plr, g_the_world):
+    #     print('\n\n\n\n')
 
-    print("There are [{}] rooms in the world".format(len(g_the_world)))
-    try:
-        with open(wld_path) as fp:
-            tmp = json.load(fp)
-            for rm in tmp:
-                rm_id = rm.get("id", NOWHERE)
-                if rm_id == NOWHERE:
-                    continue  # ignore it, we do not care
+    if len(g_the_world) == 0:
+        print("No world data found, Exiting...")
+        logging.error("Empty world data")
+        exit(1)
 
-                if not allow_overwrite and rm_id in g_the_world:
-                    continue  # already there and not overwriting
-
-                g_the_world[int(rm_id)] = rm
-            # end for each room in file
-    except FileNotFoundError as fnfe:
-        print("Could not open file: {}".format(fnfe))
-
-    calc_max_min_world()
-    print("There are [{}] rooms in the world".format(len(g_the_world)))
-    return
-
-
-def test_load_json_world(wld_file_path, allow_overwrite=False):
-    print("todo, read [{}]".format(wld_file_path))
-    global g_the_world
-
-    print("There are [{}] rooms in the world".format(len(g_the_world)))
-    try:
-        with open(wld_file_path) as fp:
-            tmp = json.load(fp)
-            for rm in tmp:
-                rm_id = rm.get("id", NOWHERE)
-                if rm_id == NOWHERE:
-                    continue  # ignore it, we do not care
-
-                if not allow_overwrite and rm_id in g_the_world:
-                    continue  # already there and not overwriting
-
-                logging.debug("Add room [{}:{}] to the world".format(rm_id, rm.get("name","")))
-                g_the_world[int(rm_id)] = rm
-            # end for each room in file
-    except FileNotFoundError as fnfe:
-        print("Could not open file: {}".format(fnfe))
-
-    calc_max_min_world()
-    print("There are [{}] rooms in the world".format(len(g_the_world)))
-    return True
-
-
-def test_load_json_zone_data(zone_file_data_obj, wld_path, obj_path, mob_path, zon_path):
-    zone_file_data_obj = dict(zone_file_data_obj)
-    global g_zones
-    zone_id = zone_file_data_obj.get("id", NOWHERE)
-    if zone_id == NOWHERE:
-        logging.error("Invalid zone id")
-        return False
-    if zone_id in g_zones:
-        logging.error("Zone id [{}] has already been loaded".format(zone_id))
-        return False
-
-    print("todo: {}".format(zone_file_data_obj))
-    wld_file = zone_file_data_obj.get("wld_file", "")
-    loaded = False
-    if wld_file == '':
-        logging.error("No world file path for zone [{}]".format(zone_id))
-    else:
-        wld_file_path = pathlib.Path(wld_path, wld_file)
-        if not wld_file_path.exists():
-            logging.error("World file [{}] for zone [{}] does not exist".format(wld_file_path.as_posix(), zone_id))
+    while True:
+        new_name = input("What is your name: ").lstrip().rstrip()
+        if new_name == '':
+            print('You must have a name, try again')
+        elif new_name.lower() == 'dan':
+            g_the_player["name"] = "Dangerous Daniel"
+            g_the_player["room"] = g_dev_start_room
+            g_the_player["admin"] = True
+            g_the_player["moves"] = 100
+            g_the_player["max_moves"] = 100
+            g_the_player["health"] = 100
+            g_the_player["max_health"] = 100
+            break
         else:
-            loaded = test_load_json_world(wld_file_path.as_posix())
+            g_the_player["name"] = capitalise(new_name)
+            g_the_player["room"] = g_default_start_room
+            g_the_player["admin"] = False
+            break
+        # end while True
 
-    logging.debug("Loaded zone [{}]".format(zone_id))
-    return loaded
+    print('Hello {}, welcome to the world'.format(g_the_player["name"]))
+    look_at_room(g_the_player, g_the_world)
 
+    logging.info('Start main loop')
+    while running:
+        player_rm_num = g_the_player["room"]
 
-def load_json_data(data_path):
-    global g_the_world
-    load_gen_rooms()
+        counter += 1
+        logging.debug('Counter is at {}'.format(counter))
 
-    data_file_path = pathlib.Path(data_path, "world.json")
-    logging.debug("Read world data from world files path [{}]".format(data_file_path.as_posix()))
+        if counter == 200:  # no more than 200 turns for testing
+            logging.info('Game is now quitting')
+            running = False
 
-    try:
-        with open(data_file_path.as_posix(), mode="r") as data_fl:
-            data_obj = json.load(data_fl)
-            # get path data first
-            paths_obj = data_obj.get("paths", {})
-            if "world_files" not in paths_obj:
-                logging.error("Could not load world path info from file [{}]".format(data_file_path.as_posix()))
-                return False
-            if "object_files" not in paths_obj:
-                logging.error("Could not load object path info from file [{}]".format(data_file_path.as_posix()))
-                return False
-            if "mob_files" not in paths_obj:
-                logging.error("Could not load mobile path info from file [{}]".format(data_file_path.as_posix()))
-                return False
-            if "zon_files" not in paths_obj:
-                logging.error("Could not load zone path info from file [{}]".format(data_file_path.as_posix()))
-                return False
+        cmd_txt = input("{} Command: ".format(get_prompt_string(g_the_player))).lstrip().rstrip()
 
-            wld_path_str = str(paths_obj.get("world_files", "")).lstrip().rstrip()
-            if wld_path_str == "":
-                logging.error("Empty world path")
-                return False
-            wld_path = pathlib.Path(data_path, wld_path_str)
-            if not wld_path.exists():
-                logging.error("World files path [{}] does not exist".format(wld_path.as_posix()))
-                return False
-            logging.debug("Got world files path [{}]".format(wld_path.as_posix()))
+        if len(cmd_txt) > 0:
+            cid, cmd, vals = get_command(cmd_txt, g_the_player, g_the_world)
 
-            obj_path_str = str(paths_obj.get("object_files", "")).lstrip().rstrip()
-            if obj_path_str == "":
-                logging.error("Empty object path")
-                return False
-            obj_path = pathlib.Path(data_path, obj_path_str)
-            if not obj_path.exists():
-                logging.error("Object files path [{}] does not exist".format(obj_path.as_posix()))
-                return False
-            logging.debug("Got object files path [{}]".format(obj_path.as_posix()))
+            if cid == Commands.NONE:
+                print("I don't understand the command [{}], try again".format(cmd_txt))
 
-            mob_path_str = str(paths_obj.get("mob_files", "")).lstrip().rstrip()
-            if mob_path_str == "":
-                logging.error("Empty mobile path")
-                return False
-            mob_path = pathlib.Path(data_path, mob_path_str)
-            if not mob_path.exists():
-                logging.error("Mobile files path [{}] does not exist".format(mob_path.as_posix()))
-                return False
-            logging.debug("Got mobile files path [{}]".format(mob_path.as_posix()))
+            elif cid == Commands.LOOK:
+                if len(vals) == 0:
+                    look_at_room(g_the_player, g_the_world)
+                else:
+                    print('Cannot look at things yet')
 
-            zon_path_str = str(paths_obj.get("zon_files", "")).lstrip().rstrip()
-            if zon_path_str == "":
-                logging.error("Empty zone path")
-                return False
-            zon_path = pathlib.Path(data_path, zon_path_str)
-            if not zon_path.exists():
-                logging.error("Zone files path [{}] does not exist".format(zon_path.as_posix()))
-                return False
-            logging.debug("Got zone files path [{}]".format(zon_path.as_posix()))
+            elif cid == Commands.QUIT:
+                print('Goodbye')
+                running = False
+                continue
 
-            logging.debug("Read zone info from [{}]".format(data_file_path.as_posix()))
-            for zone_file_data in data_obj.get("zones", []):
-                if not test_load_json_zone_data(zone_file_data, wld_path.as_posix(), obj_path.as_posix(),
-                                                mob_path.as_posix(), zon_path.as_posix()):
-                    logging.error("Failed to load zone data [{}]".format(zone_file_data))
+            elif cid == Commands.MOVE:
+                m_dir = vals.get("direction", NONE)
+                if m_dir == NONE:
+                    print("Move where?")
+                else:
+                    # check if the abbreviation for this direction is in the exit list
+                    rm_exits = room_get_exit_abbrevs(player_rm_num, g_the_player, g_the_world)
+                    if g_directions[m_dir]["abbrev"] not in rm_exits:
+                        print('You cannot go {} from here'.format(g_directions[m_dir]["name"]))
+                    else:
+                        can_pass, cost, dest_id = can_go(m_dir, g_the_player, g_the_world)
+                        if can_pass and (cost >= 0) and (dest_id != NOWHERE):
+                            move_player(dest_id, player_rm_num, cost, g_the_player, g_the_world)
+                            look_at_room(g_the_player, g_the_world)
+                        else:
+                            logging.debug("Player [{}] cannot move [{}] to [{}:{}]".format(g_the_player["name"],
+                                          g_directions[m_dir]["name"], dest_id,
+                                          find_room(dest_id, g_the_world).get("name", "UNK")))
 
-    except FileNotFoundError as fnfe:
-        logging.error("Could not read world file [{}] -> got [{}]".format(data_file_path.as_posix(), fnfe))
-        return False
-    except IOError as ioe:
-        logging.error("Got an IO error reading [{}] -> got [{}]".format(data_file_path.as_posix(), ioe))
-        return False
+            elif cid == Commands.STAT:
+                if is_admin(g_the_player):
+                    print_room_details(player_rm_num, g_the_player, g_the_world)
 
-    return True
+            elif cid == Commands.WHERE:
+                if is_admin(g_the_player):
+                    print("{cgrn}{player} [{room_num}:{room_name}]{nrm}".format(cgrn=Screen.fg.GREEN,
+                          nrm=Screen.fg.NRM, player=g_the_player["name"], room_num=player_rm_num,
+                          room_name=(g_the_world[player_rm_num]["name"] if player_rm_num != NOWHERE else "NOWHERE")))
+
+            elif cid == Commands.HELP:
+                        show_help(g_the_player)
+
+            else:
+                print("Unknown command [{}], try again".format(cmd_txt))
+
+        if (counter % 3) == 0:
+            regen_player(g_the_player)
+        # print()
+        # sleep(1)  # wait 1 second
+    # end while running
+
+    logging.debug("End of main method")
+    return
 
 
 if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
-    # test_slice()
-    # test_capitalise()
-    # load_json_data("data")
-    test_min_max()
-    test_dice()
-    # main()
+    do_tests = True
+    if do_tests:
+        # test_slice()
+        # test_capitalise()
+        # load_json_data("data")
+        # test_min_max()
+        # test_dice()
+        test_roll_stat()
+        test_gen_stats()
+    else:
+        # actually run the game
+        main()
