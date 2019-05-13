@@ -1,3 +1,5 @@
+#! /bin/python
+
 import logging
 import math
 import sys
