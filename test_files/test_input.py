@@ -236,7 +236,7 @@ def ret_test2(doom):
 if __name__ == "__main__":
     # foo = ""
     # print("foo = \"{}\"".format(foo))
-    # foo = "test test"
+    # foo = "test_files test_files"
     # print("foo = \"{}\"".format(foo))
     #
     # ret_test(foo)

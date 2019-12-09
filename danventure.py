@@ -1,511 +1,21 @@
-#! /bin/python
+#! /usr/bin/env python
 
-import logging
 import math
-import sys
 import pathlib
 import json
-import random
-from enum import Enum
+
 # from time import sleep
 
+# Our stuff now
+from src.Utils import *
+from src.World import *
+
 logger = logging.getLogger()
-# logger.setLevel(logging.DEBUG)
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.ERROR)
 
-
-class Screen:
-    class ScrFCol:
-        NRM = "\033[0m"
-        BOLD = "\033[1m"
-
-        BLACK = "\033[30m"
-        RED = "\033[31m"
-        GREEN = "\033[32m"
-        YELLOW = "\033[33m"
-        BLUE = "\033[34m"
-        MAGENTA = "\033[35m"
-        CYAN = "\033[36m"
-        WHITE = "\033[37m"
-
-        B_BLACK = "\033[90m"
-        B_RED = "\033[91m"
-        B_GREEN = "\033[92m"
-        B_YELLOW = "\033[93m"
-        B_BLUE = "\033[94m"
-        B_MAGENTA = "\033[95m"
-        B_CYAN = "\033[96m"
-        B_WHITE = "\033[97m"
-
-    class ScrBCol:
-        BLACK = "\033[40m"
-        RED = "\033[41m"
-        GREEN = "\033[42m"
-        YELLOW = "\033[43m"
-        BLUE = "\033[44m"
-        MAGENTA = "\033[45m"
-        CYAN = "\033[46m"
-        WHITE = "\033[47m"
-
-        B_BLACK = "\033[100m"
-        B_RED = "\033[101m"
-        B_GREEN = "\033[102m"
-        B_YELLOW = "\033[103m"
-        B_BLUE = "\033[104m"
-        B_MAGENTA = "\033[105m"
-        B_CYAN = "\033[106m"
-        B_WHITE = "\033[107m"
-
-    class ScrFNone:
-        NRM = ""
-        BOLD = ""
-
-        BLACK = ""
-        RED = ""
-        GREEN = ""
-        YELLOW = ""
-        BLUE = ""
-        MAGENTA = ""
-        CYAN = ""
-        WHITE = ""
-
-        B_BLACK = ""
-        B_RED = ""
-        B_GREEN = ""
-        B_YELLOW = ""
-        B_BLUE = ""
-        B_MAGENTA = ""
-        B_CYAN = ""
-        B_WHITE = ""
-
-    class ScrBNone:
-        BLACK = ""
-        RED = ""
-        GREEN = ""
-        YELLOW = ""
-        BLUE = ""
-        MAGENTA = ""
-        CYAN = ""
-        WHITE = ""
-
-        B_BLACK = ""
-        B_RED = ""
-        B_GREEN = ""
-        B_YELLOW = ""
-        B_BLUE = ""
-        B_MAGENTA = ""
-        B_CYAN = ""
-        B_WHITE = ""
-
-    use_colour = True
-    if use_colour:
-        fg = ScrFCol
-        bg = ScrBCol
-    else:
-        fg = ScrFNone
-        bg = ScrBNone
-
-
-# This should not be an enum since we need to operate like an array and compare directions
-class Directions:
-    NONE = -1,
-
-    NORTH = 0
-    EAST = 1
-    SOUTH = 2
-    WEST = 3
-    UP = 4
-    DOWN = 5
-
-    NUM_DIRS = 6
-
-
-g_directions = [
-    {"name": "North", "abbrev": "N", "reverse": Directions.SOUTH},
-    {"name": "East", "abbrev": "E", "reverse": Directions.WEST},
-    {"name": "South", "abbrev": "S", "reverse": Directions.NORTH},
-    {"name": "West", "abbrev": "W", "reverse": Directions.EAST},
-    {"name": "Up", "abbrev": "U", "reverse": Directions.DOWN},
-    {"name": "Down", "abbrev": "D", "reverse": Directions.UP}
-]
-
-
-class RoomTypes(Enum):
-    DEV = 0
-    GRASS = 1
-    FOREST = 2
-    INSIDE = 3
-    ROAD = 4
-    CITY = 5
-    TRACK = 6
-    WATER = 7
-    HILLS = 8
-    MOUNTAIN = 9
-
-    # must be last - must be the highest number
-    MAX = 10
-
-
-"""
-These values represent the data about different room types
-"""
-g_room_types = [
-    {"id": RoomTypes.DEV, "name": "DEV", "mv_cost": 0},
-    {"id": RoomTypes.GRASS, "name": "GRASS", "mv_cost": 3},
-    {"id": RoomTypes.FOREST, "name": "FOREST", "mv_cost": 5},
-    {"id": RoomTypes.INSIDE, "name": "INSIDE", "mv_cost": 1},
-    {"id": RoomTypes.ROAD, "name": "ROAD", "mv_cost": 1},
-    {"id": RoomTypes.CITY, "name": "CITY", "mv_cost": 2},
-    {"id": RoomTypes.TRACK, "name": "TRACK", "mv_cost": 2},
-    {"id": RoomTypes.WATER, "name": "WATER", "mv_cost": 8},
-    {"id": RoomTypes.HILLS, "name": "HILLS", "mv_cost": 8},
-    {"id": RoomTypes.MOUNTAIN, "name": "MOUNTAIN", "mv_cost": 10}
-]
-
-
-class Commands(Enum):
-    NONE = 0
-    LOOK = 1
-    MOVE = 2
-    EXITS = 3
-    QUIT = 4
-    HELP = 5
-    SAY = 6
-    TELEPORT = 7
-    STAT = 8
-    WHERE = 9
-
-    NUM_CMDS = 10  # Must be last, must be largest number
-
-
-g_all_commands = [
-    # Place holder for NO COMMAND
-    {"id": Commands.NONE, "long": "NONE", "short": "", "args": {"min": 0, "max": 0}},
-    # Look can be run with 0 or one arguments.   With 0 it means at the current room, with
-    # 1 argument it means look at the thing/person mentioned.
-    {"id": Commands.LOOK, "long": "look", "short": "l", "args": {"min": 0, "max": 1}},
-    # Exists just lists the exits for the current room, 0 arguments
-    {"id": Commands.EXITS, "long": "exits", "short": "x", "args": {"min": 0, "max": 0}},
-
-    # The player can type move <drection>, must have a direction.
-    {"id": Commands.MOVE, "long": "move", "short": "m", "args": {"min": 1, "max": 1}},
-    # Handle the actual directions, pre fill the movement direction values.
-    {"id": Commands.MOVE, "long": "north", "short": "n", "args": {"min": 0, "max": 0},
-     "vals": {"direction": Directions.NORTH}},
-    {"id": Commands.MOVE, "long": "east", "short": "e", "args": {"min": 0, "max": 0},
-     "vals": {"direction": Directions.EAST}},
-    {"id": Commands.MOVE, "long": "south", "short": "s", "args": {"min": 0, "max": 0},
-     "vals": {"direction": Directions.SOUTH}},
-    {"id": Commands.MOVE, "long": "west", "short": "w", "args": {"min": 0, "max": 0},
-     "vals": {"direction": Directions.WEST}},
-    {"id": Commands.MOVE, "long": "up", "short": "u", "args": {"min": 0, "max": 0},
-     "vals": {"direction": Directions.UP}},
-    {"id": Commands.MOVE, "long": "down", "short": "d", "args": {"min": 0, "max": 0},
-     "vals": {"direction": Directions.DOWN}},
-
-    # quit the game, no arguments
-    {"id": Commands.QUIT, "long": "quit", "short": "q", "args": {"min": 0, "max": 0}},
-    # Show the help.  If given 0 arguments, list the commands accessible to the player, if given 1
-    # command, list the help for that command.
-    {"id": Commands.HELP, "long": "help", "short": "?", "args": {"min": 0, "max": 1}},
-
-    # Allows the player to say things (max 100 words, min 1)
-    {"id": Commands.SAY, "long": "say", "short": "'", "args": {"min": 1, "max": 100}},
-
-    # Teleport moves the player.  If given 1 argument to the room with that ID, if given 2
-    # arguments teleport should move the specified object or mob to the room ID
-    {"id": Commands.TELEPORT, "long": "teleport", "short": "tp", "args": {"min": 1, "max": 2}, "admin": True},
-
-    # Print the statistics of a room, mob, obj or player
-    {"id": Commands.STAT, "long": "stat", "short": "", "args": {"min": 0, "max": 1}, "admin": True},
-
-    # Show the location of the player(s)
-    {"id": Commands.WHERE, "long": "where", "short": "wh", "args": {"min": 0, "max": 1}, "admin": True},
-]
-
-
-class Stats(Enum):
-    STR = 0
-    DEX = 1
-    CON = 2
-    INT = 3
-    WIS = 4
-    CHA = 5
-    
-    HIT_POINTS = 6
-    MOVES = 7
-    MANA = 8
-    
-    EXP = 9
-    
-    NUM_STATS = 10   # Must be last
-
-
-g_stats = {
-    Stats.STR: {"long": "Strength", "short": "STR"},
-    Stats.DEX: {"long": "Dexterity", "short": "DEX"},
-    Stats.CON: {"long": "Constitution", "short": "CON"},
-    Stats.INT: {"long": "Intelligence", "short": "INT"},
-    Stats.WIS: {"long": "Wisdom", "short": "WIS"},
-    Stats.CHA: {"long": "Charisma", "short": "CHA"},
-    Stats.HIT_POINTS: {"long": "Hit Points", "short": "HP"},
-    Stats.MOVES: {"long": "Moves", "short": "MV"},
-    Stats.MANA: {"long": "Mana Points", "short": "MANA"},
-    Stats.EXP: {"long": "Experience", "short": "EXP"}
-}
-
-
-def get_room_type_name(room_id):
-    if (room_id >= RoomTypes.DEV) and (room_id < RoomTypes.MAX):
-        name = g_room_types[room_id]["name"]
-    else:
-        name = "UNKNOWN"
-    return name
-
-
-NONE = -1
-NOWHERE = -1
-NOBODY = -1
-NOTHING = -1
-
-g_max_room_id = NONE
-g_min_room_id = sys.maxsize
-g_default_start_room = 1001  # Zone 10, room 1
-g_dev_start_room = 1000  # zone 10, room 0
-
-g_the_world = {}
-g_zones = {}
+# Globals
 g_the_player = {"name": "Unknown"}
-
-
-def capitalise(s):
-    """
-    Capitalise the first letter of the string s
-    :param s: The string to capitalise
-    :return:
-    """
-    # always the first letter
-    cp = ""
-    s_len = len(s)
-    if s_len >= 2:
-        cp = s[0].upper() + s[1:]
-    elif s_len == 1:
-        cp = s.upper()
-    return cp
-
-
-def wrap_text(text, wrap_col = 80):
-    s = []
-    rem = str(text)
-    while len(rem) >= wrap_col:
-        k = rem[:wrap_col].rfind(' ')
-        s.append(rem[:k])
-        rem = rem[k+1:]
-    s.append(rem)
-    return '\n'.join(s)
-
-
-def get_min(a, b):
-    return a if a < b else b
-
-
-def get_max(a, b):
-    return a if a > b else b
-
-
-def limit_val(min_v, max_v, v):
-    mn = get_min(min_v, max_v)
-    mx = get_max(min_v, max_v)
-    return get_min(mx, get_max(v, mn))
-
-
-def dice(sides, num=1, add=0, rolls=[]):
-    total = 0
-    if (sides >= 1) and (num > 0):
-        for c in range(0, num):
-            v = random.randint(1, sides)
-            rolls.append(v)
-            # logging.debug("roll {:2d}/{:2d}: dice({:2d}) --> {:3d}".format(c+1, num, sides, v))
-            total += v
-    return total + add
-
-
-def pass_fail_str(val, extra=""):
-    return str("{cgrn}PASS{nrm}".format(cgrn=Screen.fg.GREEN, nrm=Screen.fg.NRM) if val else\
-               "{cred}FAIL{nrm}".format(cred=Screen.fg.RED, nrm=Screen.fg.NRM)) +\
-               str(": " + extra) if len(extra) > 0 else ""
-
-
-def test_get_min(a, b, ex):
-    got = get_min(a, b)
-    result = (got == ex)
-    print(pass_fail_str(result, "get_min({:3d}, {:3d}); got {:3d}, expected {}".format(a, b, got, ex)))
-    return
-
-
-def test_get_max(a, b, ex):
-    got = get_max(a, b)
-    result = (got == ex)
-    print(pass_fail_str(result, "get_max({:3d}, {:3d}); got {:3d}, expected {}".format(a, b, got, ex)))
-    return
-
-
-def test_get_limit(mn, mx, v, ex):
-    got = limit_val(mn, mx, v)
-    result = (got == ex)
-    print(pass_fail_str(result, "limit_vsl({:3d}, {:3d}, {:3d}); got {:3d}, expected {}".format(mn, mx, v, got, ex)))
-    return
-
-
-def test_min_max():
-    test_get_min(0, 0, 0)
-    test_get_min(1, 0, 0)
-    test_get_min(0, 1, 0)
-
-    test_get_min(-2, -2, -2)
-    test_get_min(-2, 0, -2)
-    test_get_min(0, -2, -2)
-
-    test_get_min(2, 2, 2)
-    test_get_min(2, 0, 0)
-    test_get_min(0, 2, 0)
-
-    test_get_min(-5, 5, -5)
-    test_get_min(5, -5, -5)
-
-    test_get_min(100, 99, 99)
-    print("-----")
-    test_get_max(0, 0, 0)
-    test_get_max(1, 0, 1)
-    test_get_max(0, 1, 1)
-
-    test_get_max(-2, -2, -2)
-    test_get_max(-2, 0, 0)
-    test_get_max(0, -2, 0)
-
-    test_get_max(2, 2, 2)
-    test_get_max(2, 0, 2)
-    test_get_max(0, 2, 2)
-
-    test_get_max(-5, 5, 5)
-    test_get_max(5, -5, 5)
-
-    test_get_max(100, 99, 100)
-    print("-----")
-    # limit_val(min, max, val)
-    test_get_limit(0, 0, 0, 0)
-    test_get_limit(0, 1, 0, 0)
-    test_get_limit(1, 0, 0, 0)
-
-    test_get_limit(2, 5, 3, 3)  # is in range
-    test_get_limit(2, 5, 1, 2)  # below min
-    test_get_limit(2, 5, 7, 5)  # above max
-
-    # test reversed min/max
-    test_get_limit(5, 2, 3, 3)  # is in range
-    test_get_limit(5, 2, 1, 2)  # below min
-    test_get_limit(5, 2, 7, 5)  # above max
-
-    test_get_limit(-5, 5, 0, 0)
-    test_get_limit(-5, 5, -3, -3)
-    test_get_limit(-5, 5, 3, 3)
-    test_get_limit(-5, 5, -12, -5)
-    test_get_limit(-5, 5, 12, 5)
-    print("-----")
-
-    return
-
-
-def test_dice_fn(sides, num=1, add=0, repeat=1):
-    repeat = get_max(repeat, 1)
-    calc_min = (num + add)
-    calc_max = (sides * num) + add
-    for r in range(repeat):
-        rolls = []
-        got = dice(sides=sides, num=num, add=add, histo=rolls)
-        result = ((got <= calc_max) and (got >= calc_min))
-        print(pass_fail_str(result, "Roll {:3d}/{:3d}: [{} <= dice({}, {}, {}) <= {}]; got {} --> {}".format(r+1,
-              repeat, calc_min, sides, num, add, calc_max, got, rolls)))
-    return
-
-
-def test_dice():
-    test_dice_fn(sides=0)  # 0d0 + 0  --> MUST equal 0
-    test_dice_fn(sides=0, add=1)  # 1d0 + 1  --> MUST equal 1
-    test_dice_fn(sides=2, num=1, add=1)  # 1d2 + 1 once
-    print("------")
-    test_dice_fn(sides=2, num=1, add=1, repeat=20)  # 1d2 + 1
-    print("------")
-    test_dice_fn(sides=6, num=1, add=0, repeat=20)  # 1d6 + 0
-    print("------")
-    test_dice_fn(sides=6, num=2, add=0, repeat=30)  # 2d6 + 0
-    print("------")
-    test_dice_fn(sides=4, num=1, add=10, repeat=50)  # 1d4 + 10
-    print("------")
-    test_dice_fn(sides=4, num=10, add=5, repeat=50)  # 10d4 + 5
-    print("------")
-    test_dice_fn(sides=4, num=100, add=5, repeat=50)  # 100d4 + 5
-    print("------")
-    test_dice_fn(sides=20, num=100, add=0, repeat=50)  # 100d20 + 0
-
-    print("------")
-    test_dice_fn(sides=0, num=100, add=0, repeat=10)  # 100d0 + 0
-    print("------")
-    test_dice_fn(sides=1, num=100, add=0, repeat=10)  # 100d1 + 0
-    print("------")
-    test_dice_fn(sides=2, num=100, add=0, repeat=10)  # 100d1 + 0
-    print("------")
-    test_dice_fn(sides=4, num=100, add=0, repeat=10)  # 100d1 + 0
-    print("------\nTest stat roll")
-    test_dice_fn(sides=6, num=2, add=6, repeat=10)  # 100d1 + 0
-
-    return
-
-
-def test_slice():
-    t1 = ""
-    print("    t1 = \"{}\"".format(t1))
-    print("t1[1:] = \"{}\"".format(t1[1:]))
-    print("t1[2:] = \"{}\"".format(t1[2:]))
-    t1 = "a"
-    print("    t1 = \"{}\"".format(t1))
-    print("t1[1:] = \"{}\"".format(t1[1:]))
-    print("t1[2:] = \"{}\"".format(t1[2:]))
-    t1 = "ab"
-    print("    t1 = \"{}\"".format(t1))
-    print("t1[1:] = \"{}\"".format(t1[1:]))
-    print("t1[2:] = \"{}\"".format(t1[2:]))
-    t1 = "abc"
-    print("    t1 = \"{}\"".format(t1))
-    print("t1[1:] = \"{}\"".format(t1[1:]))
-    print("t1[2:] = \"{}\"".format(t1[2:]))
-
-
-def test_capitalise():
-    tmp = {"bob", "Mike", "MacDonald", "McDougal", "macdonald", "mcdougal", "O'Rielly", "o'brian"}
-    for t in tmp:
-        print("capitalise({}) -> \"{}\"".format(t, capitalise(t)))
-
-
-def test_gen_stats():
-    num_tests = 10
-    for idx in range(num_tests):
-        print("{:2d}/{:2d}: gen_stats() == {}".format(idx+1, num_tests, gen_stats()))
-    return
-
-
-def test_roll_stat_fn():  # hp_min=10, hp_max=20, mv_min=20, mv_max=40, mg_min=0, mg_max=8):
-    return roll_stat()
-
-
-def test_roll_stat():
-    for i in range(20):
-        vals = []
-        for c in range(6):
-            vals.append(test_roll_stat_fn())
-        v2 = ["{:2d}".format(v) for v in vals]
-        print("[{}]".format(", ".join(v2)))
-    return
 
 
 def is_admin(player):
@@ -524,53 +34,11 @@ def is_admin(player):
         return player["admin"]
 
 
-def roll_stat():
-    """
-    Roll 3d6, keep top 2 and add 6
-    :return: top 2d6 + 6
-    """
-    # TODO: add race(s) and stat adjustments
-    rolls = []
-    _ = dice(6, add=0, num=3, rolls=rolls)
-    rolls.sort(reverse=True)
-    return sum(rolls[:2]) + 6
-
-
-def gen_stats(hp_min=10, hp_max=20, mv_min=20, mv_max=40, mg_min=0, mg_max=8):
-    sts = {}
-    sts.update({Stats.STR: roll_stat()})
-    sts.update({Stats.DEX: roll_stat()})
-    sts.update({Stats.CON: roll_stat()})
-    sts.update({Stats.INT: roll_stat()})
-    sts.update({Stats.WIS: roll_stat()})
-    sts.update({Stats.CHA: roll_stat()})
-
-    sts.update({Stats.HIT_POINTS: dice((hp_max-hp_min+1), add=(hp_min-1))})
-    sts.update({Stats.MOVES: dice((mv_max-mv_min+1), add=(mv_min-1))})
-
-    tmp = random.randint(mg_min, mg_max)
-    if tmp > 0:
-        sts.update({Stats.MANA: (tmp*5)})
-    else:
-        sts.update({Stats.MANA: 0})
-    return sts
-
-
 def new_player(player, name):
     player.update("name", name)
     player.update({"stats": gen_stats().update({Stats.EXP: 0})})
     print(player)
     return
-
-
-def calc_max_min_world():
-    global g_max_room_id
-    global g_min_room_id
-    for r in g_the_world:  # for each key num in the world
-        if r > g_max_room_id:
-            g_max_room_id = r
-        if r < g_min_room_id:
-            g_min_room_id = r
 
 
 def find_room(room_id, world):
@@ -632,8 +100,10 @@ def print_exit_detail(dr, room, player, world):
     # If the exit leads somewhere we can write some details
     if ex_dest_id != NOWHERE:
         print('\t{yel}{dname:5s}: [{cyan}{exnum:3d}:{exname}{yel}]{norm}'.format(yel=Screen.fg.YELLOW,
-              cyan=Screen.fg.CYAN, norm=Screen.fg.NRM, exnum=ex_dest_id,
-              exname=to_room["name"], dname=g_directions[dr]["name"]))
+                                                                                 cyan=Screen.fg.CYAN,
+                                                                                 norm=Screen.fg.NRM, exnum=ex_dest_id,
+                                                                                 exname=to_room["name"],
+                                                                                 dname=g_directions[dr]["name"]))
     return True
 
 
@@ -682,7 +152,7 @@ def print_room_details(room_id, player, world):
 
 def print_all_room_details(player, world):
     """
-    test method: print all rooms
+    test_files method: print all rooms
     :param player:  the player for whom to print
     :param world:  a list of all rooms as unordered dictionaries
     :return:  True if something was printed
@@ -697,7 +167,7 @@ def print_all_room_details(player, world):
         for r in world:
             if print_room_details(r, player, world):
                 print()
-        logging.debug("Room test dump finished.")
+        logging.debug("Room test_files dump finished.")
         return True
     else:
         return False
@@ -770,18 +240,18 @@ def can_go(dr, player, world):
         return False, 0, NOWHERE
 
     # does the exit lead somewhere?
-    dest_rm = find_room(exit_rm_num, world)
-    if len(dest_rm) == 0:
-        logger.error("Invalid destination room [{}] from [{}]".format(player_rm, dest_rm))
+    destination_rm = find_room(exit_rm_num, world)
+    if len(destination_rm) == 0:
+        logger.error("Invalid destination room [{}] from [{}]".format(player_rm, destination_rm))
         print('{red}The exit {d_name} does not lead anywhere{norm}'.format(red=Screen.fg.RED, norm=Screen.fg.NRM,
                                                                            d_name=g_directions[dr]["name"]))
         return False, 0, NOWHERE
 
     # does the player have enough moves left
-    from_type = g_room_types[rm["type"]]                    # get the from type
-    to_type = g_room_types[dest_rm["type"]]                 # get the to type
+    from_type = g_room_types[rm["type"]]  # get the from type
+    to_type = g_room_types[destination_rm["type"]]  # get the to type
     ave = (from_type["mv_cost"] + to_type["mv_cost"]) // 2  # get the average cost of the 2 rooms
-    mv_needed = int(math.ceil(ave))                         # must be an integer
+    mv_needed = int(math.ceil(ave))  # must be an integer
     if mv_needed > player["moves"]:
         print("You're too tired to go that way")
         return False, 0, NOWHERE
@@ -797,7 +267,10 @@ def can_go(dr, player, world):
     #    Are they fighting
     #    Is there a door...
     logging.debug("Player [{}] can move [{}] to [{}:{}] at a cost of [{}] moves".format(player["name"],
-                  g_directions[dr]["name"], exit_rm_num, dest_rm["name"], mv_needed))
+                                                                                        g_directions[dr]["name"],
+                                                                                        exit_rm_num,
+                                                                                        destination_rm["name"],
+                                                                                        mv_needed))
     return True, mv_needed, exit_rm_num
 
 
@@ -823,7 +296,7 @@ def move_player(to_id, from_id, cost, player, rooms):
         pass  # missing destination
     else:
         # Move is OK, update the players movement points and position
-        player.update({"moves": (player_mv-cost), "room": to_id})
+        player.update({"moves": (player_mv - cost), "room": to_id})
         logging.debug('Player now has {} moves'.format(player["moves"]))
         # TODO: update the world to move the player too, so we can easily see which players/mobs are in a room
     return
@@ -831,7 +304,7 @@ def move_player(to_id, from_id, cost, player, rooms):
 
 def get_prompt_string(player):
     s = "Health: "
-    pct_h = (float(player["health"])/float(player["max_health"])) * 100.0
+    pct_h = (float(player["health"]) / float(player["max_health"])) * 100.0
     if pct_h < 5.0:  # badly hurt
         col_s = Screen.fg.B_RED
     elif pct_h < 20.0:
@@ -845,7 +318,7 @@ def get_prompt_string(player):
     s += "{col}{hp}/{max_hp}{norm}".format(col=col_s, norm=Screen.fg.NRM,
                                            hp=player["health"], max_hp=player["max_health"])
     s += " Moves: "
-    pct_m = (float(player["moves"])/float(player["max_moves"])) * 100.0
+    pct_m = (float(player["moves"]) / float(player["max_moves"])) * 100.0
     if pct_m < 5.0:  # badly hurt
         col_s = Screen.fg.B_RED
     elif pct_m < 20.0:
@@ -883,11 +356,11 @@ def look_at_room(player, rooms):
             if len(ex) == 0:
                 # no exits
                 print("{yel}Exits: [{cyn} None {yel}]{norm}".format(yel=Screen.fg.YELLOW, cyn=Screen.fg.CYAN,
-                      norm=Screen.fg.NRM))
+                                                                    norm=Screen.fg.NRM))
             else:
                 exits = room_get_exit_abbrevs(player_rm_id, player, rooms)
                 print("{yel}Exits: [{cyn} {e_str} {yel}]{norm}".format(yel=Screen.fg.YELLOW, cyn=Screen.fg.CYAN,
-                      norm=Screen.fg.NRM, e_str=' '.join(exits)))
+                                                                       norm=Screen.fg.NRM, e_str=' '.join(exits)))
         else:
             logging.error("could not find room with id [{}]".format(player_rm_id))
     return
@@ -903,7 +376,7 @@ def get_command(command_txt, player, rooms):
     """
     command_txt = str(command_txt).lstrip().rstrip().lower()
     args = command_txt.split(' ')
-    logging.debug('Got command test [{}] - {} args'.format(command_txt, len(args)))
+    logging.debug('Got command test_files [{}] - {} args'.format(command_txt, len(args)))
     if len(command_txt) == 0:
         print('You need to type a command')
     else:
@@ -1042,77 +515,6 @@ def load_generic_zone():
     return
 
 
-def test_load_json_wld(wld_path, allow_overwrite=False):
-    global g_the_world
-    load_generic_rooms()
-
-    print("There are [{}] rooms in the world".format(len(g_the_world)))
-    try:
-        with open(wld_path) as fp:
-            tmp = json.load(fp)
-            for rm in tmp:
-                rm_id = rm.get("id", NOWHERE)
-                if rm_id == NOWHERE:
-                    continue  # ignore it, we do not care
-
-                if not allow_overwrite and rm_id in g_the_world:
-                    continue  # already there and not overwriting
-
-                g_the_world[int(rm_id)] = rm
-            # end for each room in file
-    except FileNotFoundError as fnfe:
-        print("Could not open file: {}".format(fnfe))
-
-    calc_max_min_world()
-    print("There are [{}] rooms in the world".format(len(g_the_world)))
-    return
-
-
-def test_load_json_mobiles(mob_file_path, allow_overwrite=False):
-    print("todo, read [{}]".format(mob_file_path))
-    global g_the_world
-    return True
-
-
-def test_load_json_objects(obj_file_path, allow_overwrite=False):
-    print("todo, read [{}]".format(obj_file_path))
-    global g_the_world
-    return True
-
-
-def test_load_json_zones(zon_file_path, allow_overwrite=False):
-    print("todo, read [{}]".format(zon_file_path))
-    global g_the_world
-    return True
-
-
-def load_rooms_json(wld_file_path, allow_overwrite=False):
-    print("todo, read [{}]".format(wld_file_path))
-    global g_the_world
-
-    print("There are [{}] rooms in the world".format(len(g_the_world)))
-    try:
-        with open(wld_file_path) as fp:
-            tmp = json.load(fp)
-            for rm in tmp:
-                rm_id = rm.get("id", NOWHERE)
-                if rm_id == NOWHERE:
-                    continue  # ignore it, we do not care
-
-                if not allow_overwrite and rm_id in g_the_world:
-                    continue  # already there and not overwriting
-
-                logging.debug("Add room [{}:{}] to the world".format(rm_id, rm.get("name","")))
-                g_the_world[int(rm_id)] = rm
-            # end for each room in file
-    except FileNotFoundError as fnfe:
-        print("Could not open file: {}".format(fnfe))
-
-    calc_max_min_world()
-    print("There are [{}] rooms in the world".format(len(g_the_world)))
-    return True
-
-
 def load_json_zone_data(zone_file_data_obj, wld_path, obj_path, mob_path, zon_path):
     zone_file_data_obj = dict(zone_file_data_obj)
     global g_zones
@@ -1168,7 +570,8 @@ def load_json_zone_data(zone_file_data_obj, wld_path, obj_path, mob_path, zon_pa
     else:
         zon_file_path = pathlib.Path(zon_path, zon_file)
         if not zon_file_path.exists():
-            logging.error("Zone loading file [{}] for zone [{}] does not exist".format(zon_file_path.as_posix(), zone_id))
+            logging.error(
+                "Zone loading file [{}] for zone [{}] does not exist".format(zon_file_path.as_posix(), zone_id))
         else:
             loaded |= test_load_json_zones(zon_file_path.as_posix())
 
@@ -1348,8 +751,11 @@ def main():
                             look_at_room(g_the_player, g_the_world)
                         else:
                             logging.debug("Player [{}] cannot move [{}] to [{}:{}]".format(g_the_player["name"],
-                                          g_directions[m_dir]["name"], dest_id,
-                                          find_room(dest_id, g_the_world).get("name", "UNK")))
+                                                                                           g_directions[m_dir]["name"],
+                                                                                           dest_id,
+                                                                                           find_room(dest_id,
+                                                                                                     g_the_world).get(
+                                                                                               "name", "UNK")))
 
             elif cid == Commands.STAT:
                 if is_admin(g_the_player):
@@ -1358,11 +764,14 @@ def main():
             elif cid == Commands.WHERE:
                 if is_admin(g_the_player):
                     print("{cgrn}{player} [{room_num}:{room_name}]{nrm}".format(cgrn=Screen.fg.GREEN,
-                          nrm=Screen.fg.NRM, player=g_the_player["name"], room_num=player_rm_num,
-                          room_name=(g_the_world[player_rm_num]["name"] if player_rm_num != NOWHERE else "NOWHERE")))
+                                                                                nrm=Screen.fg.NRM,
+                                                                                player=g_the_player["name"],
+                                                                                room_num=player_rm_num,
+                                                                                room_name=(g_the_world[player_rm_num][
+                                                                                               "name"] if player_rm_num != NOWHERE else "NOWHERE")))
 
             elif cid == Commands.HELP:
-                        show_help(g_the_player)
+                show_help(g_the_player)
 
             else:
                 print("Unknown command [{}], try again".format(cmd_txt))
@@ -1380,14 +789,10 @@ def main():
 if __name__ == "__main__":
     do_tests = False
     if do_tests:
+        from test_files import Danventure_Tests
+
         logger.setLevel(logging.DEBUG)
-        # test_slice()
-        # test_capitalise()
-        # load_json_data("data")
-        # test_min_max()
-        # test_dice()
-        test_roll_stat()
-        test_gen_stats()
+        Danventure_Tests.run_tests
     else:
         # actually run the game
         main()
