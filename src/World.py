@@ -2,6 +2,7 @@
 TODO
 """
 from src.Structure import *
+import Utils
 
 
 class RoomTypes(Enum):
@@ -45,6 +46,11 @@ g_zones = {}
 
 
 def get_room_type_name(room_id):
+    """
+    Get the display name type for a given room type Id.
+    :param room_id: The room Id type
+    :return: A string representing the room type display name
+    """
     if (room_id >= RoomTypes.DEV) and (room_id < RoomTypes.MAX):
         name = g_room_types[room_id]["name"]
     else:
@@ -53,10 +59,16 @@ def get_room_type_name(room_id):
 
 
 def calc_max_min_world():
+    """
+    Calculate the minimum and maximum usable room Id's in the world for range checking
+    :return:
+    """
     global g_max_room_id
     global g_min_room_id
     for r in g_the_world:  # for each key num in the world
-        if r > g_max_room_id:
-            g_max_room_id = r
-        if r < g_min_room_id:
-            g_min_room_id = r
+        g_max_room_id = Utils.get_max(r, g_max_room_id)
+        g_min_room_id = Utils.get_min(r, g_min_room_id)
+        # if r > g_max_room_id:
+        #    g_max_room_id = r
+        # if r < g_min_room_id:
+        #    g_min_room_id = r
