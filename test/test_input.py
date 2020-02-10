@@ -233,6 +233,50 @@ def ret_test2(doom):
     return
 
 
+# This function takes last element as pivot, places
+# the pivot element at its correct position in sorted
+# array, and places all smaller (smaller than pivot)
+# to left of pivot and all greater elements to right
+# of pivot
+def partition(arr, low, high):
+    i = (low - 1)  # index of smaller element
+    pivot = arr[high]  # pivot
+    print('i = {}, pivot = {}'.format(i, pivot))
+
+    for j in range(low, high):
+        print('array: {}, arr[i] = arr[{}] = {}, arr[j] = arr[{}] = {}'.format(arr, i, arr[i], j, arr[j]))
+        # If current element is smaller than or
+        # equal to pivot
+        if arr[j] <= pivot:
+            # increment index of smaller element
+            i = i + 1
+            print('Swap arr[{}] = {} and arr[{}] = {}, pivot = {}'.format(i, arr[i], j, arr[j], pivot))
+            arr[i], arr[j] = arr[j], arr[i]
+
+    arr[i + 1], arr[high] = arr[high], arr[i + 1]
+    return i + 1
+
+
+# The main function that implements QuickSort
+# arr[] --> Array to be sorted,
+# low  --> Starting index,
+# high  --> Ending index
+#
+# Function to do Quick sort
+def quick_sort(arr, low, high):
+    if arr:
+        print('Begin Q sort of array size [{}], low [{}], high [{}]'.format(len(arr), low, high))
+        if low < high:
+            # pi is partitioning index, arr[p] is now
+            # at right place
+            pi = partition(arr, low, high)
+
+            # Separately sort elements before
+            # partition and after partition
+            quick_sort(arr, low, pi - 1)
+            quick_sort(arr, pi + 1, high)
+
+
 if __name__ == "__main__":
     # foo = ""
     # print("foo = \"{}\"".format(foo))
@@ -251,8 +295,15 @@ if __name__ == "__main__":
     # test_wrap()
     # print("------")
     # test_input()
-    # print("------")
+    print("------")
     # test_input_loop()
-    # print("------")
+    print("------")
 
+    g_arr = []
+    import random
+    for idx in range(25):
+        num = random.randrange(0, 100)
+        g_arr.append(num)
+    print(g_arr)
 
+    quick_sort(g_arr, 0, len(g_arr) - 1)

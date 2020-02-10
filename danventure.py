@@ -1362,7 +1362,7 @@ def main():
                           room_name=(g_the_world[player_rm_num]["name"] if player_rm_num != NOWHERE else "NOWHERE")))
 
             elif cid == Commands.HELP:
-                        show_help(g_the_player)
+                show_help(g_the_player)
 
             else:
                 print("Unknown command [{}], try again".format(cmd_txt))
@@ -1378,7 +1378,7 @@ def main():
 
 
 if __name__ == "__main__":
-    do_tests = False
+    do_tests = True
     if do_tests:
         logger.setLevel(logging.DEBUG)
         # test_slice()
